@@ -16,4 +16,5 @@ public static class TokenContractConstants
     public const string LogEventExternalInfoKey = "aelf_log_event";
     public const int DELEGATEE_MAX_COUNT = 128;
     public const char NFTSymbolSeparator = '-';
+    public const int NFTSymbolMaxLength = 30;
 }

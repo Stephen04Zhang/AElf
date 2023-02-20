@@ -32,9 +32,7 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
     /// <returns></returns>
     public override Empty Create(CreateInput input)
     {
-        if (Context.Origin != Context.Sender)
-            Assert(IsAddressInCreateTokenWhiteList(Context.Sender), "No permission to create token via inline tx.");
-
+        // can not call create on side chain
         Assert(State.SideChainCreator.Value == null, "Failed to create token if side chain creator already set.");
         var inputSymbolType = GetCreateInputSymbolType(input.Symbol);
         return inputSymbolType switch
@@ -45,9 +43,9 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
         };
     }
 
-    private Empty CreateToken(CreateInput input)
+    private Empty CreateToken(CreateInput input, SymbolType symbolType = SymbolType.TOKEN)
     {
-        AssertValidCreateInput(input);
+        AssertValidCreateInput(input, symbolType);
         var tokenInfo = new TokenInfo
         {
             Symbol = input.Symbol,
@@ -260,7 +258,6 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
         Assert(tokenInfo.IsBurnable, "The token is not burnable.");
         ModifyBalance(Context.Sender, input.Symbol, -input.Amount);
         tokenInfo.Supply = tokenInfo.Supply.Sub(input.Amount);
-        AssertNftCollectionExist(input.Symbol);
 
         Context.Fire(new Burned
         {
