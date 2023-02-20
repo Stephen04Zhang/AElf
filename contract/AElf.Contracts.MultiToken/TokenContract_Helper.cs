@@ -15,7 +15,12 @@ public partial class TokenContract
 {
     private static bool IsValidSymbolChar(char character)
     {
-        return (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9');
+        return (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == TokenContractConstants.NFTSymbolSeparator;
+    }
+
+    private bool IsValidItemIdChar(char character)
+    {
+        return character >= '0' && character <= '9';
     }
 
     private bool IsValidCreateSymbolChar(char character)
@@ -98,7 +103,7 @@ public partial class TokenContract
     {
         return freeAllowances?.Value.FirstOrDefault(a => a.Symbol == symbol);
     }
-    
+
     private long GetFreeFeeAllowanceAmount(MethodFeeFreeAllowances freeAllowances, string symbol)
     {
         var existingAllowance = 0L;
@@ -195,7 +200,7 @@ public partial class TokenContract
                       && input.Decimals <= TokenContractConstants.MaxDecimals;
         if (!State.CreateTokenWhiteListMap[Context.Sender])
             isValid = isValid && input.Symbol.Length <= TokenContractConstants.SymbolMaxLength;
-
+        
         Assert(isValid, "Invalid input.");
     }
 

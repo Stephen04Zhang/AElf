@@ -36,6 +36,17 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
             Assert(IsAddressInCreateTokenWhiteList(Context.Sender), "No permission to create token via inline tx.");
 
         Assert(State.SideChainCreator.Value == null, "Failed to create token if side chain creator already set.");
+        var inputSymbolType = GetCreateInputSymbolType(input.Symbol);
+        return inputSymbolType switch
+        {
+            SymbolType.NFTCollection => CreateNFTCollection(input),
+            SymbolType.NFT => CreateNFTInfo(input),
+            _ => CreateToken(input)
+        };
+    }
+
+    private Empty CreateToken(CreateInput input)
+    {
         AssertValidCreateInput(input);
         var tokenInfo = new TokenInfo
         {
@@ -48,7 +59,6 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
             IssueChainId = input.IssueChainId == 0 ? Context.ChainId : input.IssueChainId,
             ExternalInfo = input.ExternalInfo ?? new ExternalInfo()
         };
-        Assert(input.Symbol.All(IsValidCreateSymbolChar), "Invalid symbol.");
         RegisterTokenInfo(tokenInfo);
         if (string.IsNullOrEmpty(State.NativeTokenSymbol.Value))
         {
@@ -113,6 +123,8 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
         Assert(tokenInfo.Issued <= tokenInfo.TotalSupply, "Total supply exceeded");
         State.TokenInfos[input.Symbol] = tokenInfo;
         ModifyBalance(input.To, input.Symbol, input.Amount);
+        AssertNftCollectionExist(input.Symbol);
+
         Context.Fire(new Issued
         {
             Symbol = input.Symbol,
@@ -248,6 +260,8 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
         Assert(tokenInfo.IsBurnable, "The token is not burnable.");
         ModifyBalance(Context.Sender, input.Symbol, -input.Amount);
         tokenInfo.Supply = tokenInfo.Supply.Sub(input.Amount);
+        AssertNftCollectionExist(input.Symbol);
+
         Context.Fire(new Burned
         {
             Burner = Context.Sender,
