@@ -8,7 +8,13 @@
   <component name="ChangeListManager">
     <list default="true" id="67814e3f-7026-49d7-98e1-51321c1f4317" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.AElf.All/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.AElf.All/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_ACS1_MethodFeeProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_ACS1_MethodFeeProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Actions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Actions.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Helper.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Helper.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_NFT_Actions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_NFT_Actions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Views.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Views.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protobuf/token_contract.proto" beforeDir="false" afterPath="$PROJECT_DIR$/protobuf/token_contract.proto" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/ACS1_ImplementTest.cs" beforeDir="false" afterPath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/ACS1_ImplementTest.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/TokenManagementTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/TokenManagementTests.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -30,6 +36,7 @@
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/cabc7d99336f3be8da98cc86b60ab558948b559727781a9c14417c32d84fea/String.Manipulation.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/d89530529c79455ab36b25863cb235bd6166781972bf37597fda2832ceb0114/Wrappers.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/f5545b2656401abe1a371ad2756d7d2328a38293f7ee8b163801bbf55cee8/TestInvoker.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="mock:///Users/zhangziang/csharp/AElf/AElf.bak/contract/AElf.Contracts.MultiToken/TokenContract_ACS1_MethodFeeProvider.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -142,7 +149,7 @@
       <workItem from="1675659655034" duration="62000" />
       <workItem from="1675659764835" duration="162494000" />
       <workItem from="1676463899480" duration="52428000" />
-      <workItem from="1676869100770" duration="8168000" />
+      <workItem from="1676869100770" duration="12503000" />
     </task>
     <servers />
   </component>
@@ -249,6 +256,32 @@
             </endOffsets>
           </properties>
           <option name="timeStamp" value="65" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/ACS1_ImplementTest.cs</url>
+          <line>282</line>
+          <properties documentPath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/ACS1_ImplementTest.cs" initialLine="282" containingFunctionPresentation="method 'GetMethodFee_Fix_Fee_Test'">
+            <startOffsets>
+              <option value="11267" />
+            </startOffsets>
+            <endOffsets>
+              <option value="11507" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="67" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_ACS1_MethodFeeProvider.cs</url>
+          <line>16</line>
+          <properties documentPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_ACS1_MethodFeeProvider.cs" initialLine="16" containingFunctionPresentation="method 'SetMethodFee'">
+            <startOffsets>
+              <option value="477" />
+            </startOffsets>
+            <endOffsets>
+              <option value="583" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="68" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

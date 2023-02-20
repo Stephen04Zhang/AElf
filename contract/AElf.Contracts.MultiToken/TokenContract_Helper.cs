@@ -195,6 +195,8 @@ public partial class TokenContract
                && input.Symbol.Length > 0
                && input.Decimals >= 0
                && input.Decimals <= TokenContractConstants.MaxDecimals, "Invalid input.");
+        if (symbolType == SymbolType.TOKEN)
+            Assert(input.Symbol.Length <= TokenContractConstants.SymbolMaxLength, "Invalid token symbol length");
         if (symbolType == SymbolType.NFT || symbolType == SymbolType.NFTCollection)
             Assert(input.Symbol.Length <= TokenContractConstants.NFTSymbolMaxLength, "Invalid NFT symbol length");
     }
