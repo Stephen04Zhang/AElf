@@ -1185,8 +1185,7 @@ public partial class MultiTokenContractTests
             To = to == null ? creator : to
         });
     }
-
-
+    
     [Fact]
     public async Task ValidateTokenInfoExists_ExternalInfo_Test()
     {
@@ -1235,5 +1234,45 @@ public partial class MultiTokenContractTests
             });
         
         result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Failed);
+    }
+
+    [Fact]
+    public async Task CrossContractCreateToken_Test()
+    {
+        await CreateNativeTokenAsync();
+        await TokenContractStub.Issue.SendAsync(new IssueInput
+        {
+            Symbol = NativeToken,
+            To = BasicFunctionContractAddress,
+            Amount = 20000_00000000
+        });
+
+        var fee = await TokenContractStub.GetMethodFee.CallAsync(new StringValue{Value = "Create"});
+        var createTokenInput = new CreateTokenThroughMultiTokenInput
+        {
+            Symbol = "TEST",
+            Decimals = 8,
+            TokenName = "TEST token",
+            Issuer = DefaultAddress,
+            IsBurnable = true,
+            TotalSupply = TotalSupply,
+            ExternalInfo = new TestContract.BasicFunction.ExternalInfo()
+        }; 
+        var result = await BasicFunctionContractStub.CreateTokenThroughMultiToken.SendAsync(createTokenInput);
+        result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Mined);
+
+        var logs = result.TransactionResult.Logs.First(l => l.Name.Equals("TransactionFeeCharged"));
+        var transactionFeeCharged = TransactionFeeCharged.Parser.ParseFrom(logs.NonIndexed);
+        transactionFeeCharged.Amount.ShouldBe(fee.Fees.First().BasicFee);
+        transactionFeeCharged.Symbol.ShouldBe(fee.Fees.First().Symbol);
+
+        var checkTokenInfo = await TokenContractStub.GetTokenInfo.CallAsync(new GetTokenInfoInput{Symbol = "TEST"});
+        checkTokenInfo.Decimals.ShouldBe(createTokenInput.Decimals);
+        checkTokenInfo.Issuer.ShouldBe(createTokenInput.Issuer);
+        checkTokenInfo.Decimals.ShouldBe(createTokenInput.Decimals);
+        checkTokenInfo.TokenName.ShouldBe(createTokenInput.TokenName);
+        checkTokenInfo.TotalSupply.ShouldBe(createTokenInput.TotalSupply);
+        checkTokenInfo.IsBurnable.ShouldBe(createTokenInput.IsBurnable);
+        checkTokenInfo.ExternalInfo.Value.ShouldBe(createTokenInput.ExternalInfo.Value);
     }
 }
