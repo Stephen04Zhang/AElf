@@ -8,14 +8,6 @@
   <component name="ChangeListManager">
     <list default="true" id="67814e3f-7026-49d7-98e1-51321c1f4317" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.AElf.All/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.AElf.All/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_ACS1_MethodFeeProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_ACS1_MethodFeeProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Actions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Actions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Helper.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Helper.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_NFT_Actions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_NFT_Actions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Views.cs" beforeDir="false" afterPath="$PROJECT_DIR$/contract/AElf.Contracts.MultiToken/TokenContract_Views.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/protobuf/token_contract.proto" beforeDir="false" afterPath="$PROJECT_DIR$/protobuf/token_contract.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/ACS1_ImplementTest.cs" beforeDir="false" afterPath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/ACS1_ImplementTest.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/TokenManagementTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/test/AElf.Contracts.MultiToken.Tests/BVT/TokenManagementTests.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -149,7 +141,7 @@
       <workItem from="1675659655034" duration="62000" />
       <workItem from="1675659764835" duration="162494000" />
       <workItem from="1676463899480" duration="52428000" />
-      <workItem from="1676869100770" duration="12503000" />
+      <workItem from="1676869100770" duration="14477000" />
     </task>
     <servers />
   </component>
