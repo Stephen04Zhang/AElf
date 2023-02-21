@@ -36,7 +36,8 @@ public partial class TokenContract
         Context.Fire(new TransactionFeeCharged()
         {
             Symbol = transferFromInput.Symbol,
-            Amount = transferFromInput.Amount
+            Amount = transferFromInput.Amount,
+            ChargingAddress = Context.Sender
         });
     }
 
