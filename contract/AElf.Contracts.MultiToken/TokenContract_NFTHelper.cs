@@ -20,7 +20,7 @@ public partial class TokenContract
         return words[1] == "0" ? SymbolType.NFTCollection : SymbolType.NFT;
     }
 
-    private void AssertNFTInfoCreateInput(CreateInput input)
+    private void AssertNFTCreateInput(CreateInput input)
     {
         Assert(input.Decimals == 0, "NFT's decimals must be 0");
     }

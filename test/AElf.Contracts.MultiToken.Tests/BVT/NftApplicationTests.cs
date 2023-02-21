@@ -223,7 +223,7 @@ public partial class MultiTokenContractTests
                 ExternalInfo = input.ExternalInfo
             });
             result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Failed);
-            result.TransactionResult.Error.ShouldContain("NFT collection's decimals must be 0");
+            result.TransactionResult.Error.ShouldContain("NFT's decimals must be 0");
         }
         // Symbol check
         {
@@ -253,7 +253,7 @@ public partial class MultiTokenContractTests
                 ExternalInfo = input.ExternalInfo
             });
             result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Failed);
-            result.TransactionResult.Error.ShouldContain("Invalid input");
+            result.TransactionResult.Error.ShouldContain("Invalid NFT symbol length");
         }
     }
 
@@ -336,7 +336,7 @@ public partial class MultiTokenContractTests
                 ExternalInfo = input.ExternalInfo
             });
             result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Failed);
-            result.TransactionResult.Error.ShouldContain("NFT issuer must be collection issuer");
+            result.TransactionResult.Error.ShouldContain("NFT issuer must be collection's issuer");
         }
     }
 

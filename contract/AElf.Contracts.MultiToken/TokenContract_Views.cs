@@ -224,8 +224,8 @@ public partial class TokenContract
     private bool IsAddressInCreateWhiteList(Address address)
     {
         return address == Context.GetZeroSmartContractAddress() ||
-               address == GetDefaultParliamentController().OwnerAddress || address ==
-               Context.GetContractAddressByName(SmartContractConstants.EconomicContractSystemName) ||
+               address == GetDefaultParliamentController().OwnerAddress ||
+               address == Context.GetContractAddressByName(SmartContractConstants.EconomicContractSystemName) ||
                address == Context.GetContractAddressByName(SmartContractConstants.CrossChainContractSystemName);
     }
 }

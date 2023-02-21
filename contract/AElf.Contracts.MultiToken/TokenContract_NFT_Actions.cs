@@ -10,13 +10,13 @@ public partial class TokenContract
 {
     private Empty CreateNFTCollection(CreateInput input)
     {
-        AssertNFTInfoCreateInput(input);
+        AssertNFTCreateInput(input);
         return CreateToken(input, SymbolType.NFTCollection);
     }
 
     private Empty CreateNFTInfo(CreateInput input)
     {
-        AssertNFTInfoCreateInput(input);
+        AssertNFTCreateInput(input);
         var nftCollectionInfo = AssertNftCollectionExist(input.Symbol);
         Assert(Context.ChainId == nftCollectionInfo.IssueChainId && Context.ChainId == input.IssueChainId, "NFT create ChainId must be collection's issue chainId");
         Assert(Context.Sender == nftCollectionInfo.Issuer && nftCollectionInfo.Issuer == input.Issuer, "NFT issuer must be collection's issuer");
@@ -31,8 +31,9 @@ public partial class TokenContract
         var fee = GetCreateMethodFee();
         Assert(fee != null, "not enough balance for create");
         var transferFromInput = new TransferFromInput { From = Context.Sender, To = Context.Self, Symbol = fee.Symbol, Amount = fee.BasicFee };
-        TransferFrom(transferFromInput);
-        State.Balances[Context.Self][transferFromInput.Symbol] = State.Balances[Context.Self][transferFromInput.Symbol].Sub(transferFromInput.Amount);
+        Context.SendInline(Context.Self, nameof(TransferFrom), transferFromInput);
+
+        ModifyBalance(Context.Self, transferFromInput.Symbol, -transferFromInput.Amount);
         Context.Fire(new TransactionFeeCharged()
         {
             Symbol = transferFromInput.Symbol,
