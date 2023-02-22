@@ -122,7 +122,6 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
         Assert(tokenInfo.Issued <= tokenInfo.TotalSupply, "Total supply exceeded");
         State.TokenInfos[input.Symbol] = tokenInfo;
         ModifyBalance(input.To, input.Symbol, input.Amount);
-        AssertNftCollectionExist(input.Symbol);
 
         Context.Fire(new Issued
         {
