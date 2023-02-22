@@ -34,7 +34,7 @@ public partial class TokenContract
         Assert(fee != null, "not enough balance for create");
         DoTransferFrom(Context.Sender, Context.Self, Context.Self, fee.Symbol, fee.BasicFee, "");
 
-        State.Balances[Context.Self][fee.Symbol] = State.Balances[Context.Self][fee.Symbol].Sub(fee.BasicFee);
+        ModifyBalance(Context.Self, fee.Symbol, -fee.BasicFee);
         Context.Fire(new TransactionFeeCharged()
         {
             Symbol = fee.Symbol,
