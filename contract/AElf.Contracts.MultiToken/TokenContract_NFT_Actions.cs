@@ -49,7 +49,7 @@ public partial class TokenContract
         var allowance = State.Allowances[from][spender][symbol];
         if (allowance < amount)
         {
-            if (IsInWhiteList(new IsInWhiteListInput { Symbol = symbol, Address = Context.Sender }).Value)
+            if (IsInWhiteList(new IsInWhiteListInput { Symbol = symbol, Address = spender }).Value)
             {
                 DoTransfer(from, to, symbol, amount, memo);
                 DealWithExternalInfoDuringTransfer(new TransferFromInput() { From = from, To = to, Symbol = symbol, Amount = amount, Memo = memo });
@@ -58,7 +58,7 @@ public partial class TokenContract
 
             Assert(false,
                 $"[TransferFrom]Insufficient allowance. Token: {symbol}; {allowance}/{amount}.\n" +
-                $"From:{from}\tSpender:{Context.Sender}\tTo:{to}");
+                $"From:{from}\tSpender:{spender}\tTo:{to}");
         }
 
         DoTransfer(from, to, symbol, amount, memo);
