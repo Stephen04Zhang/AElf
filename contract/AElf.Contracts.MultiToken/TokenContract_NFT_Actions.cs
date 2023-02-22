@@ -19,6 +19,7 @@ public partial class TokenContract
     {
         AssertNFTCreateInput(input);
         var nftCollectionInfo = AssertNftCollectionExist(input.Symbol);
+        input.IssueChainId = input.IssueChainId == 0 ? nftCollectionInfo.IssueChainId : input.IssueChainId;
         Assert(Context.ChainId == nftCollectionInfo.IssueChainId && Context.ChainId == input.IssueChainId, "NFT create ChainId must be collection's issue chainId");
         Assert(Context.Sender == nftCollectionInfo.Issuer && nftCollectionInfo.Issuer == input.Issuer, "NFT issuer must be collection's issuer");
         return CreateToken(input, SymbolType.NFT);
