@@ -33,7 +33,7 @@ public partial class TokenContract
         var transferFromInput = new TransferFromInput { From = Context.Sender, To = Context.Self, Symbol = fee.Symbol, Amount = fee.BasicFee };
         Context.SendInline(Context.Self, nameof(TransferFrom), transferFromInput);
 
-        ModifyBalance(Context.Self, transferFromInput.Symbol, -transferFromInput.Amount);
+        State.Balances[Context.Self][transferFromInput.Symbol] = State.Balances[Context.Self][transferFromInput.Symbol].Sub(transferFromInput.Amount);
         Context.Fire(new TransactionFeeCharged()
         {
             Symbol = transferFromInput.Symbol,
