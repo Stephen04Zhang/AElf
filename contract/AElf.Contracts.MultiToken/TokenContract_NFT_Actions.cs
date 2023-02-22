@@ -2,6 +2,7 @@ using System.Linq;
 using AElf.CSharp.Core;
 using AElf.Sdk.CSharp;
 using AElf.Standards.ACS1;
+using AElf.Types;
 using Google.Protobuf.WellKnownTypes;
 
 namespace AElf.Contracts.MultiToken;
@@ -30,16 +31,38 @@ public partial class TokenContract
 
         var fee = GetCreateMethodFee();
         Assert(fee != null, "not enough balance for create");
-        var transferFromInput = new TransferFromInput { From = Context.Sender, To = Context.Self, Symbol = fee.Symbol, Amount = fee.BasicFee };
-        Context.SendInline(Context.Self, nameof(TransferFrom), transferFromInput);
+        DoTransferFrom(Context.Sender, Context.Self, Context.Self, fee.Symbol, fee.BasicFee, "");
 
-        State.Balances[Context.Self][transferFromInput.Symbol] = State.Balances[Context.Self][transferFromInput.Symbol].Sub(transferFromInput.Amount);
+        State.Balances[Context.Self][fee.Symbol] = State.Balances[Context.Self][fee.Symbol].Sub(fee.BasicFee);
         Context.Fire(new TransactionFeeCharged()
         {
-            Symbol = transferFromInput.Symbol,
-            Amount = transferFromInput.Amount,
-            ChargingAddress = Context.Sender
+            Symbol = fee.Symbol,
+            Amount = fee.BasicFee,
+            ChargingAddress = Context.Self
         });
+    }
+
+    private void DoTransferFrom(Address from, Address to, Address spender, string symbol, long amount, string memo)
+    {
+        // First check allowance.
+        var allowance = State.Allowances[from][spender][symbol];
+        if (allowance < amount)
+        {
+            if (IsInWhiteList(new IsInWhiteListInput { Symbol = symbol, Address = Context.Sender }).Value)
+            {
+                DoTransfer(from, to, symbol, amount, memo);
+                DealWithExternalInfoDuringTransfer(new TransferFromInput() { From = from, To = to, Symbol = symbol, Amount = amount, Memo = memo });
+                return;
+            }
+
+            Assert(false,
+                $"[TransferFrom]Insufficient allowance. Token: {symbol}; {allowance}/{amount}.\n" +
+                $"From:{from}\tSpender:{Context.Sender}\tTo:{to}");
+        }
+
+        DoTransfer(from, to, symbol, amount, memo);
+        DealWithExternalInfoDuringTransfer(new TransferFromInput() { From = from, To = to, Symbol = symbol, Amount = amount, Memo = memo });
+        State.Allowances[from][spender][symbol] = allowance.Sub(amount);
     }
 
     private MethodFee GetCreateMethodFee()

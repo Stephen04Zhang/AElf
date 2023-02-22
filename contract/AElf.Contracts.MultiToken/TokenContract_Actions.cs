@@ -201,25 +201,7 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
     public override Empty TransferFrom(TransferFromInput input)
     {
         AssertValidToken(input.Symbol, input.Amount);
-        // First check allowance.
-        var allowance = State.Allowances[input.From][Context.Sender][input.Symbol];
-        if (allowance < input.Amount)
-        {
-            if (IsInWhiteList(new IsInWhiteListInput { Symbol = input.Symbol, Address = Context.Sender }).Value)
-            {
-                DoTransfer(input.From, input.To, input.Symbol, input.Amount, input.Memo);
-                DealWithExternalInfoDuringTransfer(input);
-                return new Empty();
-            }
-
-            Assert(false,
-                $"[TransferFrom]Insufficient allowance. Token: {input.Symbol}; {allowance}/{input.Amount}.\n" +
-                $"From:{input.From}\tSpender:{Context.Sender}\tTo:{input.To}");
-        }
-
-        DoTransfer(input.From, input.To, input.Symbol, input.Amount, input.Memo);
-        DealWithExternalInfoDuringTransfer(input);
-        State.Allowances[input.From][Context.Sender][input.Symbol] = allowance.Sub(input.Amount);
+        DoTransferFrom(input.From, input.To, Context.Sender, input.Symbol, input.Amount, input.Memo);
         return new Empty();
     }
 
@@ -436,12 +418,13 @@ public partial class TokenContract : TokenContractImplContainer.TokenContractImp
             $"Token contract address of chain {ChainHelper.ConvertChainIdToBase58(input.FromChainId)} not registered.");
 
         var originalTransaction = Transaction.Parser.ParseFrom(input.TransactionBytes);
+
         AssertCrossChainTransaction(originalTransaction, tokenContractAddress, nameof(ValidateTokenInfoExists));
         var originalTransactionId = originalTransaction.GetHash();
         CrossChainVerify(originalTransactionId, input.ParentChainHeight, input.FromChainId, input.MerklePath);
         var validateTokenInfoExistsInput =
             ValidateTokenInfoExistsInput.Parser.ParseFrom(originalTransaction.Params);
-
+        AssertNftCollectionExist(validateTokenInfoExistsInput.Symbol);
         var tokenInfo = new TokenInfo
         {
             Symbol = validateTokenInfoExistsInput.Symbol,
