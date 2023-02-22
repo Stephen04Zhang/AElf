@@ -121,7 +121,6 @@ public partial class MultiTokenContractTests : MultiTokenContractTestBase
             IsBurnable = NativeTokenInfo.IsBurnable,
             LockWhiteList =
             {
-                BasicFunctionContractAddress,
                 OtherBasicFunctionContractAddress,
                 TokenConverterContractAddress,
                 TreasuryContractAddress

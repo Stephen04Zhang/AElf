@@ -255,6 +255,20 @@ public partial class MultiTokenContractTests
             result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Failed);
             result.TransactionResult.Error.ShouldContain("Invalid NFT symbol length");
         }
+        // Issue chain Id check
+        {
+            var result = await TokenContractStubUser.Create.SendAsync(new CreateInput
+            {
+                Symbol =  $"{input.Symbol}0",
+                TokenName = input.TokenName,
+                TotalSupply = input.TotalSupply,
+                Decimals = input.Decimals,
+                Issuer = NftCollection721Info.Issuer,
+                IssueChainId = ChainHelper.ConvertBase58ToChainId("tDVV"),
+                ExternalInfo = input.ExternalInfo
+            });
+            result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Mined);
+        }
     }
 
     [Fact(DisplayName = "[MultiToken_Nft] Create nft input check")]
@@ -337,6 +351,20 @@ public partial class MultiTokenContractTests
             });
             result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Failed);
             result.TransactionResult.Error.ShouldContain("NFT issuer must be collection's issuer");
+        }
+        {
+            var result = await TokenContractStubUser.Create.SendWithExceptionAsync(new CreateInput
+            {
+                Symbol = $"{NftCollection721Info.Symbol}{input.Symbol}",
+                TokenName = input.TokenName,
+                TotalSupply = input.TotalSupply,
+                Decimals = input.Decimals,
+                Issuer = input.Issuer,
+                IssueChainId = ChainHelper.ConvertBase58ToChainId("tDVV"),
+                ExternalInfo = input.ExternalInfo
+            });
+            result.TransactionResult.Status.ShouldBe(TransactionResultStatus.Failed);
+            result.TransactionResult.Error.ShouldContain("NFT create ChainId must be collection's issue chainId");
         }
     }
 
@@ -576,7 +604,7 @@ public partial class MultiTokenContractTests
         issueRes.TransactionResult.Error.ShouldContain("Total supply exceeded");
     }
 
-    [Fact(DisplayName = "[MultiToken] 1155 nfts approve and transferFrom Test")]
+    [Fact(DisplayName = "[MultiToken-nft] 1155 nfts approve and transferFrom Test")]
     public async Task NftIssue_Approve_TransferFrom()
     {
         var symbols = await CreateNftCollectionAndNft();
