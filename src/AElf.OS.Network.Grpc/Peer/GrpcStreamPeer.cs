@@ -3,10 +3,8 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using AElf.OS.Network.Application;
-using AElf.OS.Network.Protocol;
 using AElf.OS.Network.Protocol.Types;
 using Grpc.Core;
-using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
 
@@ -34,7 +32,12 @@ public class GrpcStreamPeer : GrpcPeer
     {
         await base.PingAsync();
         if (_streamClient == null) return;
-        await _streamClient.PingAsync(null);
+        var data = new Metadata
+        {
+            { GrpcConstants.TimeoutMetadataKey, PingRequestTimeout.ToString() },
+            { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
+        };
+        await _streamClient.PingAsync(data);
     }
 
     public override async Task CheckHealthAsync()

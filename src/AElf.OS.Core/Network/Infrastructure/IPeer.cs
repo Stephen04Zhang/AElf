@@ -15,7 +15,7 @@ public interface IPeer
     bool IsReady { get; }
     string ConnectionStatus { get; }
     bool IsInvalid { get; }
-    SyncState SyncState { get; set;}
+    SyncState SyncState { get; }
     Hash LastKnownLibHash { get; }
     long LastKnownLibHeight { get; }
     Timestamp LastReceivedHandshakeTime { get; }

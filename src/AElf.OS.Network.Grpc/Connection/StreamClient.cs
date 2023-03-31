@@ -1,12 +1,12 @@
-using System;
+using System.Text;
 using System.Threading.Tasks;
 using AElf.OS.Network.Grpc.Helpers;
 using AElf.Types;
 using Google.Protobuf;
 using Grpc.Core;
-using Volo.Abp.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Volo.Abp.DependencyInjection;
 
 namespace AElf.OS.Network.Grpc;
 
@@ -32,7 +32,7 @@ public class StreamClient
         return nodeList;
     }
 
-    public async Task<HandshakeReply> HandShake(HandshakeRequest request, Metadata header)
+    public async Task<HandshakeReply> HandShakeAsync(HandshakeRequest request, Metadata header)
     {
         var reply = await RequestAsync(MessageType.HandShake, request.ToByteString(), header);
         return HandshakeReply.Parser.ParseFrom(reply.Message);
@@ -40,7 +40,7 @@ public class StreamClient
 
     public async Task CheckHealthAsync(Metadata header)
     {
-        await RequestAsync(MessageType.HealthCheck, new HealthCheckRequest().ToByteString(), header,  GetTimeOutFromHeader(header));
+        await RequestAsync(MessageType.HealthCheck, new HealthCheckRequest().ToByteString(), header, GetTimeOutFromHeader(header));
     }
 
     public async Task<BlockWithTransactions> RequestBlockAsync(BlockRequest blockRequest, Metadata header)
@@ -53,7 +53,7 @@ public class StreamClient
 
     public async Task<BlockList> RequestBlocksAsync(BlocksRequest blockRequest, Metadata header)
     {
-        var reply = await RequestAsync(MessageType.RequestBlocks, blockRequest.ToByteString(), header,GetTimeOutFromHeader(header));
+        var reply = await RequestAsync(MessageType.RequestBlocks, blockRequest.ToByteString(), header, GetTimeOutFromHeader(header));
         var blockList = new BlockList();
         blockList.MergeFrom(reply.Message);
         return blockList;
@@ -109,7 +109,7 @@ public class StreamClient
         AddAllHeaders(streamMessage, header);
         await ClientStreamWriter.WriteAsync(streamMessage);
         _streamTaskResourcePool.RegistryTaskPromise(requestId, messageType, new TaskCompletionSource<StreamMessage>());
-        return await _streamTaskResourcePool.GetResult(requestId, timeout);
+        return await _streamTaskResourcePool.GetResultAsync(requestId, timeout);
     }
 
     private void AddAllHeaders(StreamMessage streamMessage, Metadata header)
@@ -121,7 +121,12 @@ public class StreamClient
 
         foreach (var e in header)
         {
-            if (e.IsBinary) continue;
+            if (e.IsBinary)
+            {
+                streamMessage.Meta.Add(e.Key, Encoding.ASCII.GetString(e.ValueBytes));
+                continue;
+            }
+
             streamMessage.Meta.Add(e.Key, e.Value);
         }
     }

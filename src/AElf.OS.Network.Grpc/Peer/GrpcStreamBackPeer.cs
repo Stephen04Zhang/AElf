@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using AElf.OS.Network.Application;
-using AElf.OS.Network.Metrics;
 using AElf.OS.Network.Protocol.Types;
 using AElf.Types;
 using Grpc.Core;
@@ -36,6 +35,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         }
         catch (Exception)
         {
+            // swallow the exception, we don't care because we're disconnecting.
         }
     }
 
@@ -44,7 +44,12 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         if (_streamClient == null) return;
         try
         {
-            await _streamClient.PingAsync(AddPeerMeta(null));
+            var data = new Metadata
+            {
+                { GrpcConstants.TimeoutMetadataKey, PingRequestTimeout.ToString() },
+                { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
+            };
+            await _streamClient.PingAsync(AddPeerMeta(data));
         }
         catch (RpcException e)
         {
@@ -234,6 +239,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             var networkException = HandleRpcException(e, request.ErrorMessage);
             if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
                 await DisconnectAsync(true);
+            throw;
         }
         catch (Exception e)
         {
@@ -241,9 +247,9 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             {
                 await DisconnectAsync(true);
             }
-        }
 
-        return new List<BlockWithTransactions>();
+            throw;
+        }
     }
 
     public override async Task<NodeList> GetNodesAsync(int count = NetworkConstants.DefaultDiscoveryMaxNodesToRequest)
@@ -263,6 +269,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             var networkException = HandleRpcException(e, "Request nodes failed.");
             if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
                 await DisconnectAsync(true);
+            throw;
         }
         catch (Exception e)
         {
@@ -270,9 +277,9 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             {
                 await DisconnectAsync(true);
             }
-        }
 
-        return null;
+            throw;
+        }
     }
 
     public override async Task CheckHealthAsync()
@@ -284,23 +291,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             { GrpcConstants.TimeoutMetadataKey, CheckHealthTimeout.ToString() },
             { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        try
-        {
-            await _streamClient.CheckHealthAsync(AddPeerMeta(data));
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, request.ErrorMessage);
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-        }
-        catch (Exception e)
-        {
-            if (e is TimeoutException or InvalidOperationException)
-            {
-                await DisconnectAsync(true);
-            }
-        }
+        await _streamClient.CheckHealthAsync(AddPeerMeta(data));
     }
 
     public override async Task<BlockWithTransactions> GetBlockByHashAsync(Hash hash)
@@ -328,6 +319,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             var networkException = HandleRpcException(e, request.ErrorMessage);
             if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
                 await DisconnectAsync(true);
+            throw;
         }
         catch (Exception e)
         {
@@ -335,9 +327,9 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             {
                 await DisconnectAsync(true);
             }
-        }
 
-        return new BlockWithTransactions();
+            throw;
+        }
     }
 
     private Metadata AddPeerMeta(Metadata metadata)
@@ -347,18 +339,12 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         {
             metadata.Add(kv.Key, kv.Value);
         }
-
+        metadata.Add(GrpcConstants.SessionIdMetadataKey, OutboundSessionId);
         return metadata;
     }
 
-    public override async Task<bool> TryRecoverAsync()
+    public override Task<bool> TryRecoverAsync()
     {
-        IsConnected = false;
-        return IsConnected;
-    }
-
-    public override Dictionary<string, List<RequestMetric>> GetRequestMetrics()
-    {
-        return null;
+        return Task.FromResult(true);
     }
 }

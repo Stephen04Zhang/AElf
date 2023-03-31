@@ -73,7 +73,7 @@ public class PeerDialer : IPeerDialer
         var handshake = await _handshakeProvider.GetHandshakeAsync(KernelConstants.PreProtocolVersion);
         var handshakeReply = await CallDoHandshakeAsync(client, remoteEndpoint, handshake);
 
-        if (!await ProcessHandshakeReply(handshakeReply, remoteEndpoint))
+        if (!await ProcessHandshakeReplyAsync(handshakeReply, remoteEndpoint))
         {
             await client.Channel.ShutdownAsync();
             return null;
@@ -110,7 +110,7 @@ public class PeerDialer : IPeerDialer
         return peer;
     }
 
-    public async Task<bool> ProcessHandshakeReply(HandshakeReply handshakeReply, DnsEndPoint remoteEndpoint)
+    private async Task<bool> ProcessHandshakeReplyAsync(HandshakeReply handshakeReply, DnsEndPoint remoteEndpoint)
     {
         // verify handshake
         if (handshakeReply.Error != HandshakeError.HandshakeOk)
@@ -140,11 +140,11 @@ public class PeerDialer : IPeerDialer
             IsInbound = true,
             NodeVersion = handshake.HandshakeData.NodeVersion
         };
-        var nodePubkey = AsyncHelper.RunSync(() => _accountService.GetPublicKeyAsync()).ToHex();
+        var nodePubkey = (await _accountService.GetPublicKeyAsync()).ToHex();
         var meta = new Dictionary<string, string>()
         {
             { GrpcConstants.PubkeyMetadataKey, nodePubkey },
-            { GrpcConstants.PeerInfoMetadataKey, info.ToString() },
+            { GrpcConstants.PeerInfoMetadataKey, info.ToString() }
         };
         Logger.LogWarning("DialBackPeerByStreamAsync meta={meta}", meta);
         var peer = new GrpcStreamBackPeer(null, remoteEndpoint, info, streamClient, meta);
@@ -273,7 +273,7 @@ public class PeerDialer : IPeerDialer
                     EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), peer.Info.Pubkey)));
             }, tokenSource.Token), tokenSource);
             var handshake = await _handshakeProvider.GetHandshakeAsync();
-            var handShakeReply = await streamClient.HandShake(new HandshakeRequest { Handshake = handshake }, metadata);
+            var handShakeReply = await streamClient.HandShakeAsync(new HandshakeRequest { Handshake = handshake }, metadata);
             peer.InboundSessionId = handshake.SessionId.ToByteArray();
             peer.Info.SessionId = handShakeReply.Handshake.SessionId.ToByteArray();
             Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.handShakeReply={handShakeReply}", remoteEndPoint.ToString(), handShakeReply.Handshake);

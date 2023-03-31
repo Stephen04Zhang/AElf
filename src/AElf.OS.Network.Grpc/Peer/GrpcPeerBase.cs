@@ -136,7 +136,19 @@ public abstract class GrpcPeerBase : IPeer
 
     public PeerConnectionInfo Info { get; }
 
-    public abstract Dictionary<string, List<RequestMetric>> GetRequestMetrics();
+    public Dictionary<string, List<RequestMetric>> GetRequestMetrics()
+    {
+        var metrics = new Dictionary<string, List<RequestMetric>>();
+        foreach (var roundtripTime in _recentRequestsRoundtripTimes.ToArray())
+        {
+            var metricsToAdd = new List<RequestMetric>();
+
+            metrics.Add(roundtripTime.Key, metricsToAdd);
+            foreach (var requestMetric in roundtripTime.Value) metricsToAdd.Add(requestMetric);
+        }
+
+        return metrics;
+    }
 
     public abstract Task<NodeList> GetNodesAsync(int count = NetworkConstants.DefaultDiscoveryMaxNodesToRequest);
 

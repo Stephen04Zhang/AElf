@@ -29,20 +29,6 @@ public class GrpcPeer : GrpcPeerBase
     {
     }
 
-    public override Dictionary<string, List<RequestMetric>> GetRequestMetrics()
-    {
-        var metrics = new Dictionary<string, List<RequestMetric>>();
-        foreach (var roundtripTime in _recentRequestsRoundtripTimes.ToArray())
-        {
-            var metricsToAdd = new List<RequestMetric>();
-
-            metrics.Add(roundtripTime.Key, metricsToAdd);
-            foreach (var requestMetric in roundtripTime.Value) metricsToAdd.Add(requestMetric);
-        }
-
-        return metrics;
-    }
-
     public override Task<NodeList> GetNodesAsync(int count = NetworkConstants.DefaultDiscoveryMaxNodesToRequest)
     {
         var request = new GrpcRequest { ErrorMessage = "Request nodes failed." };
