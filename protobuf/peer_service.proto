@@ -49,13 +49,20 @@ message HealthCheckReply {
 
 message StreamMessage {
   StreamType stream_type = 1;
-  string request_id = 2;
-  bytes body = 3;
-  map<string, string> meta = 4;
+  MessageType message_type = 2;
+  string request_id = 3;
+  bytes message = 4;
+  map<string, string> meta = 5;
 }
 
 enum StreamType {
   UNKNOWN = 0;
+  REQUEST = 1;
+  REPLY = 2;
+}
+
+enum MessageType {
+  ANY = 0;
 
   HAND_SHAKE = 1;
   PING = 2;
@@ -70,18 +77,4 @@ enum StreamType {
   ANNOUNCEMENT_BROADCAST = 10;
   LIB_ANNOUNCEMENT_BROADCAST = 11;
   DISCONNECT = 12;
-
-  HAND_SHAKE_REPLY = 13;
-  PONG_REPLY = 14;//void
-  CONFIRM_HAND_SHAKE_REPLY = 15;
-  HEALTH_CHECK_REPLY = 16;
-  REQUEST_BLOCK_REPLY = 17;
-  REQUEST_BLOCKS_REPLY = 18;
-  GET_NODES_REPLY = 19;
-
-  BLOCK_BROADCAST_REPLY = 20;//void
-  TRANSACTION_BROADCAST_REPLY = 21;//void
-  ANNOUNCEMENT_BROADCAST_REPLY = 22;//void
-  LIB_ANNOUNCEMENT_BROADCAST_REPLY = 23;//void
-  DISCONNECT_REPLY = 24;
 }

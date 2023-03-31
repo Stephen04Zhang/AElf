@@ -78,7 +78,7 @@ public static class AElfPeerEndpointHelper
             return -1;
         }
 
-        if (!int.TryParse(values[^1], out var port))
+        if (!int.TryParse(values[values.Length - 1], out var port))
         {
             return -1;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 using AElf.Kernel.Blockchain.Application;
 using AElf.Kernel.TransactionPool;
@@ -11,6 +12,7 @@ using AElf.OS.Network.Grpc.Helpers;
 using AElf.OS.Network.Infrastructure;
 using AElf.Types;
 using Google.Protobuf;
+using Google.Protobuf.Collections;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -57,108 +59,24 @@ public class StreamService : IStreamService, ISingletonDependency
 
     public async Task ProcessStreamRequest(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, ServerCallContext context)
     {
-        Logger.LogInformation("receive {requestId} {streamType}", request.RequestId, request.StreamType);
-        try
-        {
-            switch (request.StreamType)
-            {
-                case StreamType.HandShakeReply:
-                case StreamType.DisconnectReply:
-                case StreamType.PongReply:
-                case StreamType.BlockBroadcastReply:
-                case StreamType.TransactionBroadcastReply:
-                case StreamType.AnnouncementBroadcastReply:
-                case StreamType.LibAnnouncementBroadcastReply:
-                case StreamType.ConfirmHandShakeReply:
-                case StreamType.HealthCheckReply:
-                case StreamType.RequestBlockReply:
-                case StreamType.RequestBlocksReply:
-                case StreamType.GetNodesReply:
-                    _streamTaskResourcePool.TrySetResult(request.RequestId, request);
-                    break;
-                case StreamType.HandShake:
-                    var handleShakeReply = await ProcessHandShake(request, responseStream, context);
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.HandShakeReply, RequestId = request.RequestId, Body = handleShakeReply.ToByteString() });
-                    break;
-                case StreamType.GetNodes:
-                    var nodeList = await GetNodes(NodesRequest.Parser.ParseFrom(request.Body), context.GetPeerInfo());
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.GetNodesReply, RequestId = request.RequestId, Body = nodeList.ToByteString() });
-                    break;
-                case StreamType.HealthCheck:
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.HealthCheckReply, RequestId = request.RequestId, Body = new HealthCheckReply().ToByteString() });
-                    break;
-                case StreamType.Ping:
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.PongReply, RequestId = request.RequestId, Body = new PongReply().ToByteString() });
-                    break;
-                case StreamType.Disconnect:
-                    await Disconnect(DisconnectReason.Parser.ParseFrom(request.Body), request.RequestId, context.GetPeerInfo(), context.GetPublicKey());
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.DisconnectReply, RequestId = request.RequestId, Body = new VoidReply().ToByteString() });
-                    break;
-                case StreamType.ConfirmHandShake:
-                    ConfirmHandshake(request.RequestId, context.GetPeerInfo(), context.GetPublicKey());
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.ConfirmHandShakeReply, RequestId = request.RequestId, Body = new VoidReply().ToByteString() });
-                    break;
-
-                case StreamType.RequestBlock:
-                    var block = await RequestBlock(BlockRequest.Parser.ParseFrom(request.Body), request.RequestId, context.GetPeerInfo(), context.GetPublicKey());
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.RequestBlockReply, RequestId = request.RequestId, Body = block.ToByteString() });
-                    break;
-                case StreamType.RequestBlocks:
-                    var blocks = await RequestBlocks(BlocksRequest.Parser.ParseFrom(request.Body), request.RequestId, context.GetPeerInfo());
-                    await SetGrpcGzip(context);
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.RequestBlocksReply, RequestId = request.RequestId, Body = blocks.ToByteString() });
-                    break;
-
-                case StreamType.BlockBroadcast:
-                    await ProcessBlockAsync(BlockWithTransactions.Parser.ParseFrom(request.Body), context.GetPublicKey());
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.BlockBroadcastReply, RequestId = request.RequestId, Body = new VoidReply().ToByteString() });
-                    break;
-                case StreamType.AnnouncementBroadcast:
-                    await ProcessAnnouncementAsync(BlockAnnouncement.Parser.ParseFrom(request.Body), context.GetPublicKey());
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.AnnouncementBroadcastReply, RequestId = request.RequestId, Body = new VoidReply().ToByteString() });
-                    break;
-                case StreamType.TransactionBroadcast:
-                    await ProcessTransactionAsync(Transaction.Parser.ParseFrom(request.Body), context.GetPublicKey());
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.TransactionBroadcastReply, RequestId = request.RequestId, Body = new VoidReply().ToByteString() });
-                    break;
-                case StreamType.LibAnnouncementBroadcast:
-                    await ProcessLibAnnouncementAsync(LibAnnouncement.Parser.ParseFrom(request.Body), context.GetPublicKey());
-                    await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.LibAnnouncementBroadcastReply, RequestId = request.RequestId, Body = new VoidReply().ToByteString() });
-                    break;
-                case StreamType.Unknown:
-                default:
-                    Logger.LogWarning("unhandled stream request: {requestId} {type}", request.RequestId, request.StreamType);
-                    break;
-            }
-        }
-        catch (Exception e)
-        {
-            Logger.LogWarning(e, "request failed {requestId} {streamType}", request.RequestId, request.StreamType);
-            throw;
-        }
+        await DoProcess(request, responseStream, new ServiceContextProvider(context));
     }
 
     public async Task ProcessStreamReply(ByteString reply, string clientPubKey)
     {
         var message = StreamMessage.Parser.ParseFrom(reply);
         Logger.LogInformation("receive {requestId} {streamType} {meta}", message.RequestId, message.StreamType, message.Meta);
-        if (await ProcessStreamReply(message)) return;
 
-        var peer = _peerPool.FindPeerByPublicKey(clientPubKey) as GrpcStreamPeer;
-        if (peer == null)
-        {
-            Logger.LogError("clientPubKey={clientPubKey} not found for {requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
-            return;
-        }
-
+        var peer = _peerPool.FindPeerByPublicKey(clientPubKey);
+        var streamPeer = peer as GrpcStreamPeer;
         try
         {
-            await ProcessStreamRequest(message, peer?.GetResponseStream());
+            DoProcess(message, streamPeer?.GetResponseStream(), new StreamMessageMetaContextProvider(message.Meta));
             Logger.LogInformation("handle stream call success, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
         }
         catch (RpcException ex)
         {
-            await HandleNetworkException(peer, peer.HandleRpcException(ex, $"Could not broadcast to {this}: "));
+            await HandleNetworkException(peer, streamPeer.HandleRpcException(ex, $"Could not broadcast to {this}: "));
             Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
         }
         catch (Exception ex)
@@ -167,6 +85,92 @@ public class StreamService : IStreamService, ISingletonDependency
             Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
         }
     }
+
+    private async Task DoProcess(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IContextProvider contextProvider)
+    {
+        Logger.LogInformation("receive {requestId} {streamType}", request.RequestId, request.StreamType);
+        switch (request.StreamType)
+        {
+            case StreamType.Reply:
+                await ProcessStreamReply(request);
+                return;
+            case StreamType.Request:
+                await ProcessStreamRequest(request, responseStream, contextProvider);
+                return;
+            case StreamType.Unknown:
+            default:
+                Logger.LogWarning("unhandled stream request: {requestId} {type}", request.RequestId, request.StreamType);
+                return;
+        }
+    }
+
+    private async Task ProcessStreamReply(StreamMessage reply)
+    {
+        Logger.LogInformation("receive {RequestId} {streamType}", reply.RequestId, reply.StreamType);
+        _streamTaskResourcePool.TrySetResult(reply.RequestId, reply);
+    }
+
+    private async Task ProcessStreamRequest(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IContextProvider contextProvider)
+    {
+        try
+        {
+            IMessage reply = null;
+            switch (request.MessageType)
+            {
+                case MessageType.HandShake:
+                    var context = (contextProvider as ServiceContextProvider).Context;
+                    reply = await ProcessHandShake(request, responseStream, context);
+                    break;
+                case MessageType.GetNodes:
+                    reply = await GetNodes(NodesRequest.Parser.ParseFrom(request.Message), contextProvider.GetPeerInfo());
+                    break;
+                case MessageType.HealthCheck:
+                    reply = new HealthCheckReply();
+                    break;
+                case MessageType.Ping:
+                    break;
+                case MessageType.Disconnect:
+                    await Disconnect(DisconnectReason.Parser.ParseFrom(request.Message), request.RequestId, contextProvider.GetPeerInfo(), contextProvider.GetPubKey());
+                    break;
+                case MessageType.ConfirmHandShake:
+                    ConfirmHandshake(request.RequestId, contextProvider.GetPeerInfo(), contextProvider.GetPubKey());
+                    break;
+
+                case MessageType.RequestBlock:
+                    reply = await RequestBlock(BlockRequest.Parser.ParseFrom(request.Message), request.RequestId, contextProvider.GetPeerInfo(), contextProvider.GetPubKey());
+                    break;
+                case MessageType.RequestBlocks:
+                    reply = await RequestBlocks(BlocksRequest.Parser.ParseFrom(request.Message), request.RequestId, contextProvider.GetPeerInfo());
+                    break;
+
+                case MessageType.BlockBroadcast:
+                    await ProcessBlockAsync(BlockWithTransactions.Parser.ParseFrom(request.Message), contextProvider.GetPubKey());
+                    break;
+                case MessageType.AnnouncementBroadcast:
+                    await ProcessAnnouncementAsync(BlockAnnouncement.Parser.ParseFrom(request.Message), contextProvider.GetPubKey());
+                    break;
+                case MessageType.TransactionBroadcast:
+                    await ProcessTransactionAsync(Transaction.Parser.ParseFrom(request.Message), contextProvider.GetPubKey());
+                    break;
+                case MessageType.LibAnnouncementBroadcast:
+                    await ProcessLibAnnouncementAsync(LibAnnouncement.Parser.ParseFrom(request.Message), contextProvider.GetPubKey());
+                    break;
+                case MessageType.Any:
+                default:
+                    Logger.LogWarning("unhandled stream request: {requestId} {type}", request.RequestId, request.StreamType);
+                    break;
+            }
+
+            await responseStream.WriteAsync(new StreamMessage
+                { StreamType = StreamType.Reply, MessageType = request.MessageType, RequestId = request.RequestId, Message = reply == null ? new VoidReply().ToByteString() : reply.ToByteString() });
+        }
+        catch (Exception e)
+        {
+            Logger.LogWarning(e, "request failed {requestId} {streamType}", request.RequestId, request.StreamType);
+            throw;
+        }
+    }
+
 
     public async Task HandleNetworkException(IPeer peer, NetworkException exception)
     {
@@ -190,83 +194,14 @@ public class StreamService : IStreamService, ISingletonDependency
         if (!success) await _connectionService.TrySchedulePeerReconnectionAsync(peer);
     }
 
-    private async Task<bool> ProcessStreamReply(StreamMessage reply)
-    {
-        if (reply.StreamType is not (StreamType.HandShakeReply or StreamType.DisconnectReply or StreamType.PongReply or StreamType.BlockBroadcastReply or StreamType.TransactionBroadcastReply or StreamType.AnnouncementBroadcastReply
-            or StreamType.LibAnnouncementBroadcastReply or StreamType.ConfirmHandShakeReply or StreamType.HealthCheckReply or StreamType.RequestBlockReply or StreamType.RequestBlocksReply or StreamType.GetNodesReply)) return false;
-        Logger.LogInformation("receive {RequestId} {streamType}", reply.RequestId, reply.StreamType);
-        _streamTaskResourcePool.TrySetResult(reply.RequestId, reply);
-        return true;
-    }
-
-    private async Task ProcessStreamRequest(StreamMessage reply, IAsyncStreamWriter<StreamMessage> responseStream)
-    {
-        switch (reply.StreamType)
-        {
-            // case StreamType.HandShake:       impossible！！！    
-            //     var handshakeReply = await _connectionService.DoHandshakeByStreamAsync(new DnsEndPoint(reply.Meta[GrpcConstants.StreamPeerHostKey], int.Parse(reply.Meta[GrpcConstants.StreamPeerPortKey])), responseStream,
-            //         Handshake.Parser.ParseFrom(reply.Body));
-            //     await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.HandShakeReply, RequestId = reply.RequestId, Body = handshakeReply.ToByteString() });
-            //     return;
-            case StreamType.GetNodes:
-                var nodeList = await GetNodes(NodesRequest.Parser.ParseFrom(reply.Body), reply.Meta[GrpcConstants.PeerInfoMetadataKey]);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.GetNodesReply, RequestId = reply.RequestId, Body = nodeList.ToByteString() });
-                break;
-            case StreamType.HealthCheck:
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.HealthCheckReply, RequestId = reply.RequestId, Body = new HealthCheckReply().ToByteString() });
-                break;
-            case StreamType.Ping:
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.PongReply, RequestId = reply.RequestId, Body = new PongReply().ToByteString() });
-                break;
-            case StreamType.RequestBlock:
-                var block = await RequestBlock(BlockRequest.Parser.ParseFrom(reply.Body), reply.RequestId, reply.Meta[GrpcConstants.PeerInfoMetadataKey], reply.Meta[GrpcConstants.PubkeyMetadataKey]);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.RequestBlockReply, RequestId = reply.RequestId, Body = block.ToByteString() });
-                break;
-            case StreamType.RequestBlocks:
-                var blocks = await RequestBlocks(BlocksRequest.Parser.ParseFrom(reply.Body), reply.RequestId, reply.Meta[GrpcConstants.PeerInfoMetadataKey]);
-                //todo fix me SetGrpcGzip(context);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.RequestBlocksReply, RequestId = reply.RequestId, Body = blocks.ToByteString() });
-                break;
-            case StreamType.Disconnect:
-                await Disconnect(DisconnectReason.Parser.ParseFrom(reply.Body), reply.RequestId, reply.Meta?[GrpcConstants.PeerInfoMetadataKey], reply.Meta?[GrpcConstants.PubkeyMetadataKey]);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.DisconnectReply, RequestId = reply.RequestId, Body = new VoidReply().ToByteString() });
-                break;
-            case StreamType.ConfirmHandShake:
-                ConfirmHandshake(reply.RequestId, reply.Meta[GrpcConstants.PeerInfoMetadataKey], reply.Meta[GrpcConstants.PubkeyMetadataKey]);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.ConfirmHandShakeReply, RequestId = reply.RequestId, Body = new VoidReply().ToByteString() });
-                break;
-            case StreamType.BlockBroadcast:
-                await ProcessBlockAsync(BlockWithTransactions.Parser.ParseFrom(reply.Body), reply.Meta[GrpcConstants.PubkeyMetadataKey]);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.BlockBroadcastReply, RequestId = reply.RequestId, Body = new VoidReply().ToByteString() });
-                break;
-            case StreamType.AnnouncementBroadcast:
-                await ProcessAnnouncementAsync(BlockAnnouncement.Parser.ParseFrom(reply.Body), reply.Meta[GrpcConstants.PubkeyMetadataKey]);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.AnnouncementBroadcastReply, RequestId = reply.RequestId, Body = new VoidReply().ToByteString() });
-                break;
-            case StreamType.TransactionBroadcast:
-                await ProcessTransactionAsync(Transaction.Parser.ParseFrom(reply.Body), reply.Meta[GrpcConstants.PubkeyMetadataKey]);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.TransactionBroadcastReply, RequestId = reply.RequestId, Body = new VoidReply().ToByteString() });
-                break;
-            case StreamType.LibAnnouncementBroadcast:
-                await ProcessLibAnnouncementAsync(LibAnnouncement.Parser.ParseFrom(reply.Body), reply.Meta[GrpcConstants.PubkeyMetadataKey]);
-                await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.LibAnnouncementBroadcastReply, RequestId = reply.RequestId, Body = new VoidReply().ToByteString() });
-                break;
-            case StreamType.Unknown:
-            default:
-                Logger.LogWarning("unsupported impl type={type}", reply.StreamType);
-                break;
-        }
-    }
-
     private Task ProcessBlockAsync(BlockWithTransactions block, string peerPubkey)
     {
         var peer = TryGetPeerByPubkey(peerPubkey);
 
         if (peer.SyncState != SyncState.Finished) peer.SyncState = SyncState.Finished;
-        Logger.LogDebug("{peerPubkey} SyncState={SyncState}", peerPubkey, peer.SyncState);
+
         if (!peer.TryAddKnownBlock(block.GetHash()))
             return Task.CompletedTask;
-        Logger.LogDebug("{peerPubkey} add success={hash}", peerPubkey, block.GetHash().ToHex());
         _ = EventBus.PublishAsync(new BlockReceivedEvent(block, peerPubkey));
         return Task.CompletedTask;
     }
@@ -340,7 +275,7 @@ public class StreamService : IStreamService, ISingletonDependency
 
             if (!GrpcEndPointHelper.ParseDnsEndPoint(context.Peer, out var peerEndpoint))
                 return new HandshakeReply { Error = HandshakeError.InvalidConnection };
-            return await _connectionService.DoHandshakeByStreamAsync(peerEndpoint, responseStream, HandshakeRequest.Parser.ParseFrom(request.Body).Handshake);
+            return await _connectionService.DoHandshakeByStreamAsync(peerEndpoint, responseStream, HandshakeRequest.Parser.ParseFrom(request.Message).Handshake);
         }
         catch (Exception e)
         {
@@ -496,5 +431,63 @@ public class StreamService : IStreamService, ISingletonDependency
 
         Logger.LogDebug("Peer: {peerPubkey} already removed.", peerPubkey);
         throw new RpcException(Status.DefaultCancelled);
+    }
+}
+
+public interface IContextProvider
+{
+    string GetPeerInfo();
+    string GetPubKey();
+    byte[] GetSessionId();
+}
+
+public class ServiceContextProvider : IContextProvider
+{
+    public ServerCallContext Context;
+
+    public ServiceContextProvider(ServerCallContext context)
+    {
+        Context = context;
+    }
+
+    public string GetPeerInfo()
+    {
+        return Context.GetPeerInfo();
+    }
+
+    public string GetPubKey()
+    {
+        return Context.GetPublicKey();
+    }
+
+    public byte[] GetSessionId()
+    {
+        return Context.GetSessionId();
+    }
+}
+
+public class StreamMessageMetaContextProvider : IContextProvider
+{
+    private MapField<string, string> _meta;
+
+    public StreamMessageMetaContextProvider(MapField<string, string> meta)
+    {
+        _meta = meta;
+    }
+
+    public string GetPeerInfo()
+    {
+        return _meta[GrpcConstants.PeerInfoMetadataKey];
+    }
+
+    public string GetPubKey()
+    {
+        return _meta[GrpcConstants.PubkeyMetadataKey];
+    }
+
+    public byte[] GetSessionId()
+    {
+        var val = _meta[GrpcConstants.SessionIdMetadataKey];
+        return val == null ? null : Encoding.ASCII.GetBytes(val);
     }
 }

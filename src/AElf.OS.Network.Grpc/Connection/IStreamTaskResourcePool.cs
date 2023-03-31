@@ -7,30 +7,30 @@ namespace AElf.OS.Network.Grpc;
 
 public interface IStreamTaskResourcePool
 {
-    void RegistryTaskPromise(string requestId, StreamType streamType, TaskCompletionSource<StreamMessage> promise);
+    void RegistryTaskPromise(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise);
     void TrySetResult(string requestId, StreamMessage reply);
     Task<StreamMessage> GetResult(string requestId, int timeOut);
 }
 
 public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDependency
 {
-    private readonly ConcurrentDictionary<string, Tuple<StreamType, TaskCompletionSource<StreamMessage>>> _promisePool;
+    private readonly ConcurrentDictionary<string, Tuple<MessageType, TaskCompletionSource<StreamMessage>>> _promisePool;
 
     public StreamTaskResourcePool()
     {
-        _promisePool = new ConcurrentDictionary<string, Tuple<StreamType, TaskCompletionSource<StreamMessage>>>();
+        _promisePool = new ConcurrentDictionary<string, Tuple<MessageType, TaskCompletionSource<StreamMessage>>>();
     }
 
-    public void RegistryTaskPromise(string requestId, StreamType streamType, TaskCompletionSource<StreamMessage> promise)
+    public void RegistryTaskPromise(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise)
     {
-        _promisePool[requestId] = new Tuple<StreamType, TaskCompletionSource<StreamMessage>>(streamType, promise);
+        _promisePool[requestId] = new Tuple<MessageType, TaskCompletionSource<StreamMessage>>(messageType, promise);
     }
 
     public void TrySetResult(string requestId, StreamMessage reply)
     {
         AssertContains(requestId);
         var promise = _promisePool[requestId];
-        if (promise.Item1 != reply.StreamType)
+        if (promise.Item1 != reply.MessageType)
         {
             throw new Exception($"invalid reply type set {reply.StreamType} expect {promise.Item1}");
         }

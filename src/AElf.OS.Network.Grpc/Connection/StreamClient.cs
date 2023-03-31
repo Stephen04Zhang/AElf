@@ -26,73 +26,73 @@ public class StreamClient
 
     public async Task<NodeList> GetNodesAsync(NodesRequest nodesRequest, Metadata header)
     {
-        var reply = await RequestAsync(StreamType.GetNodes, nodesRequest.ToByteString(), header, StreamType.GetNodesReply, GetTimeOutFromHeader(header));
+        var reply = await RequestAsync(MessageType.GetNodes, nodesRequest.ToByteString(), header, GetTimeOutFromHeader(header));
         var nodeList = new NodeList();
-        nodeList.MergeFrom(reply.Body);
+        nodeList.MergeFrom(reply.Message);
         return nodeList;
     }
 
     public async Task<HandshakeReply> HandShake(HandshakeRequest request, Metadata header)
     {
-        var reply = await RequestAsync(StreamType.HandShake, request.ToByteString(), header, StreamType.HandShakeReply);
-        return HandshakeReply.Parser.ParseFrom(reply.Body);
+        var reply = await RequestAsync(MessageType.HandShake, request.ToByteString(), header);
+        return HandshakeReply.Parser.ParseFrom(reply.Message);
     }
 
     public async Task CheckHealthAsync(Metadata header)
     {
-        await RequestAsync(StreamType.HealthCheck, new HealthCheckRequest().ToByteString(), header, StreamType.HealthCheckReply, GetTimeOutFromHeader(header));
+        await RequestAsync(MessageType.HealthCheck, new HealthCheckRequest().ToByteString(), header,  GetTimeOutFromHeader(header));
     }
 
     public async Task<BlockWithTransactions> RequestBlockAsync(BlockRequest blockRequest, Metadata header)
     {
-        var reply = await RequestAsync(StreamType.RequestBlock, blockRequest.ToByteString(), header, StreamType.RequestBlockReply, GetTimeOutFromHeader(header));
+        var reply = await RequestAsync(MessageType.RequestBlock, blockRequest.ToByteString(), header, GetTimeOutFromHeader(header));
         var blockWithTransactions = new BlockWithTransactions();
-        blockWithTransactions.MergeFrom(reply.Body);
+        blockWithTransactions.MergeFrom(reply.Message);
         return blockWithTransactions;
     }
 
     public async Task<BlockList> RequestBlocksAsync(BlocksRequest blockRequest, Metadata header)
     {
-        var reply = await RequestAsync(StreamType.RequestBlocks, blockRequest.ToByteString(), header, StreamType.RequestBlocksReply, GetTimeOutFromHeader(header));
+        var reply = await RequestAsync(MessageType.RequestBlocks, blockRequest.ToByteString(), header,GetTimeOutFromHeader(header));
         var blockList = new BlockList();
-        blockList.MergeFrom(reply.Body);
+        blockList.MergeFrom(reply.Message);
         return blockList;
     }
 
     public async Task DisconnectAsync(DisconnectReason disconnectReason, Metadata header)
     {
-        await RequestAsync(StreamType.Disconnect, disconnectReason.ToByteString(), header, StreamType.DisconnectReply);
+        await RequestAsync(MessageType.Disconnect, disconnectReason.ToByteString(), header);
     }
 
     public async Task ConfirmHandshakeAsync(ConfirmHandshakeRequest confirmHandshakeRequest, Metadata header)
     {
-        await RequestAsync(StreamType.HandShake, confirmHandshakeRequest.ToByteString(), header, StreamType.HandShakeReply, GetTimeOutFromHeader(header));
+        await RequestAsync(MessageType.HandShake, confirmHandshakeRequest.ToByteString(), header, GetTimeOutFromHeader(header));
     }
 
     public async Task BroadcastBlockAsync(BlockWithTransactions blockWithTransactions, Metadata header)
     {
-        await RequestAsync(StreamType.BlockBroadcast, blockWithTransactions.ToByteString(), header, StreamType.BlockBroadcastReply);
+        await RequestAsync(MessageType.BlockBroadcast, blockWithTransactions.ToByteString(), header);
     }
 
     public async Task<PongReply> PingAsync(Metadata header)
     {
-        var msg = await RequestAsync(StreamType.Ping, new PingRequest().ToByteString(), header, StreamType.PongReply);
-        return msg == null ? null : PongReply.Parser.ParseFrom(msg.Body);
+        var msg = await RequestAsync(MessageType.Ping, new PingRequest().ToByteString(), header);
+        return msg == null ? null : PongReply.Parser.ParseFrom(msg.Message);
     }
 
     public async Task BroadcastAnnouncementBlockAsync(BlockAnnouncement header, Metadata meta)
     {
-        await RequestAsync(StreamType.AnnouncementBroadcast, header.ToByteString(), meta, StreamType.AnnouncementBroadcastReply);
+        await RequestAsync(MessageType.AnnouncementBroadcast, header.ToByteString(), meta);
     }
 
     public async Task BroadcastTransactionAsync(Transaction transaction, Metadata meta)
     {
-        await RequestAsync(StreamType.TransactionBroadcast, transaction.ToByteString(), meta, StreamType.TransactionBroadcastReply);
+        await RequestAsync(MessageType.TransactionBroadcast, transaction.ToByteString(), meta);
     }
 
     public async Task BroadcastLibAnnouncementAsync(LibAnnouncement libAnnouncement, Metadata header)
     {
-        await RequestAsync(StreamType.LibAnnouncementBroadcast, libAnnouncement.ToByteString(), header, StreamType.LibAnnouncementBroadcastReply);
+        await RequestAsync(MessageType.LibAnnouncementBroadcast, libAnnouncement.ToByteString(), header);
     }
 
     private int GetTimeOutFromHeader(Metadata header)
@@ -102,13 +102,13 @@ public class StreamClient
         return int.Parse(t);
     }
 
-    private async Task<StreamMessage> RequestAsync(StreamType replyType, ByteString reply, Metadata header, StreamType expectReturnType, int timeout = StreamWaitTime)
+    private async Task<StreamMessage> RequestAsync(MessageType messageType, ByteString reply, Metadata header, int timeout = StreamWaitTime)
     {
         var requestId = CommonHelper.GenerateRequestId();
-        var streamMessage = new StreamMessage { StreamType = replyType, RequestId = requestId, Body = reply };
+        var streamMessage = new StreamMessage { StreamType = StreamType.Request, MessageType = messageType, RequestId = requestId, Message = reply };
         AddAllHeaders(streamMessage, header);
         await ClientStreamWriter.WriteAsync(streamMessage);
-        _streamTaskResourcePool.RegistryTaskPromise(requestId, expectReturnType, new TaskCompletionSource<StreamMessage>());
+        _streamTaskResourcePool.RegistryTaskPromise(requestId, messageType, new TaskCompletionSource<StreamMessage>());
         return await _streamTaskResourcePool.GetResult(requestId, timeout);
     }
 
