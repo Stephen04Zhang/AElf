@@ -19,6 +19,7 @@ public class StreamMessageReceivedEventHandler : ILocalEventHandler<StreamMessag
 
     public async Task HandleEventAsync(StreamMessageReceivedEvent eventData)
     {
-        await _streamService.ProcessStreamReply(eventData.Message, eventData.ClientPubkey);
+        //because our message do not have different between each other, so we want it to be processed concurrency
+        _streamService.ProcessStreamReply(eventData.Message, eventData.ClientPubkey);
     }
 }
