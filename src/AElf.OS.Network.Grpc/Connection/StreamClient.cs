@@ -74,7 +74,7 @@ public class StreamClient
         await RequestAsync(StreamType.BlockBroadcast, blockWithTransactions.ToByteString(), header, StreamType.BlockBroadcastReply);
     }
 
-    public async Task<PongReply> Ping(Metadata header)
+    public async Task<PongReply> PingAsync(Metadata header)
     {
         var msg = await RequestAsync(StreamType.Ping, new PingRequest().ToByteString(), header, StreamType.PongReply);
         return msg == null ? null : PongReply.Parser.ParseFrom(msg.Body);

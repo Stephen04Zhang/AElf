@@ -7,7 +7,7 @@ namespace AElf.OS.Network.Grpc;
 
 public interface IConnectionService
 {
-    GrpcPeer GetPeerByPubkey(string pubkey);
+    GrpcPeerBase GetPeerByPubkey(string pubkey);
     Task DisconnectAsync(IPeer peer, bool sendDisconnect = false);
     Task<bool> SchedulePeerReconnection(DnsEndPoint endpoint);
     Task<bool> TrySchedulePeerReconnectionAsync(IPeer peer);

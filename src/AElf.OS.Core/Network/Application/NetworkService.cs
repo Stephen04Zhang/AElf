@@ -239,7 +239,7 @@ public class NetworkService : INetworkService, ISingletonDependency
                 {
                     Logger.LogInformation(ex, $"Removing unhealthy peer {peer}.");
                     if (peer.RemoteEndpoint.Port == KernelConstants.ClosedPort)
-                        peer.DisconnectAsync(true);
+                        await peer.DisconnectAsync(true);
                     else
                         await _networkServer.TrySchedulePeerReconnectionAsync(peer);
                 }

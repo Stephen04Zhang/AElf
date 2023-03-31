@@ -403,7 +403,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
     ///     because when we start transferring data using the streaming RPC,
     ///     the request no longer goes through the <see cref="AuthInterceptor" />.
     /// </exception>
-    private GrpcPeer TryGetPeerByPubkey(string peerPubkey)
+    private GrpcPeerBase TryGetPeerByPubkey(string peerPubkey)
     {
         var peer = _connectionService.GetPeerByPubkey(peerPubkey);
 

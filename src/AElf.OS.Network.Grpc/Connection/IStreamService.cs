@@ -105,7 +105,7 @@ public class StreamService : IStreamService, ISingletonDependency
                     break;
                 case StreamType.RequestBlocks:
                     var blocks = await RequestBlocks(BlocksRequest.Parser.ParseFrom(request.Body), request.RequestId, context.GetPeerInfo());
-                    SetGrpcGzip(context);
+                    await SetGrpcGzip(context);
                     await responseStream.WriteAsync(new StreamMessage { StreamType = StreamType.RequestBlocksReply, RequestId = request.RequestId, Body = blocks.ToByteString() });
                     break;
 
@@ -144,7 +144,7 @@ public class StreamService : IStreamService, ISingletonDependency
         Logger.LogInformation("receive {requestId} {streamType} {meta}", message.RequestId, message.StreamType, message.Meta);
         if (await ProcessStreamRequest(message)) return;
 
-        var peer = _peerPool.FindPeerByPublicKey(clientPubKey) as GrpcPeer;
+        var peer = _peerPool.FindPeerByPublicKey(clientPubKey) as GrpcStreamPeer;
         if (peer == null)
         {
             Logger.LogError("clientPubKey={clientPubKey} not found for {requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
@@ -153,18 +153,17 @@ public class StreamService : IStreamService, ISingletonDependency
 
         try
         {
-            await ProcessStreamRequest(message, (peer.Holder as OutboundPeerHolder)?.GetResponseStream());
+            await ProcessStreamRequest(message, peer?.GetResponseStream());
             Logger.LogInformation("handle stream call success, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
         }
         catch (RpcException ex)
         {
-            HandleNetworkException(peer, peer.Holder.HandleRpcException(ex, $"Could not broadcast to {this}: "));
+            await HandleNetworkException(peer, peer.HandleRpcException(ex, $"Could not broadcast to {this}: "));
             Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
-            await Task.Delay(GrpcConstants.StreamRecoveryWaitTime);
         }
         catch (Exception ex)
         {
-            HandleNetworkException(peer, new NetworkException("Unknown exception during broadcast.", ex));
+            await HandleNetworkException(peer, new NetworkException("Unknown exception during broadcast.", ex));
             Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
         }
     }
@@ -503,7 +502,7 @@ public class StreamService : IStreamService, ISingletonDependency
     ///     because when we start transferring data using the streaming RPC,
     ///     the request no longer goes through the <see cref="AuthInterceptor" />.
     /// </exception>
-    private GrpcPeer TryGetPeerByPubkey(string peerPubkey)
+    private IPeer TryGetPeerByPubkey(string peerPubkey)
     {
         var peer = _connectionService.GetPeerByPubkey(peerPubkey);
 

@@ -76,9 +76,9 @@ public class ConnectionService : IConnectionService
         return _reconnectionService.SchedulePeerForReconnection(peer.RemoteEndpoint.ToString());
     }
 
-    public GrpcPeer GetPeerByPubkey(string pubkey)
+    public GrpcPeerBase GetPeerByPubkey(string pubkey)
     {
-        return _peerPool.FindPeerByPublicKey(pubkey) as GrpcPeer;
+        return _peerPool.FindPeerByPublicKey(pubkey) as GrpcPeerBase;
     }
 
     /// <summary>
@@ -155,7 +155,7 @@ public class ConnectionService : IConnectionService
             throw;
         }
 
-        currentPeer.Holder.IsConnected = true;
+        currentPeer.IsConnected = true;
         currentPeer.SyncState = SyncState.Syncing;
 
         Logger.LogInformation(
@@ -323,7 +323,7 @@ public class ConnectionService : IConnectionService
 
     public void ConfirmHandshake(string peerPubkey)
     {
-        var peer = _peerPool.FindPeerByPublicKey(peerPubkey) as GrpcPeer;
+        var peer = _peerPool.FindPeerByPublicKey(peerPubkey) as GrpcPeerBase;
         if (peer == null)
         {
             Logger.LogWarning($"Cannot find Peer {peerPubkey} in the pool.");
@@ -335,7 +335,7 @@ public class ConnectionService : IConnectionService
                               $" - LIB height {peer.LastKnownLibHeight}" +
                               $" - best chain [{peer.CurrentBlockHeight}, {peer.CurrentBlockHash}]");
 
-        peer.Holder.IsConnected = true;
+        peer.IsConnected = true;
         peer.SyncState = SyncState.Syncing;
 
         FireConnectionEvent(peer);
@@ -359,7 +359,7 @@ public class ConnectionService : IConnectionService
         return await _peerDialer.CheckEndpointAvailableAsync(endpoint);
     }
 
-    private void FireConnectionEvent(GrpcPeer peer)
+    private void FireConnectionEvent(GrpcPeerBase peer)
     {
         var nodeInfo = new NodeInfo
             { Endpoint = peer.RemoteEndpoint.ToString(), Pubkey = ByteStringHelper.FromHexString(peer.Info.Pubkey) };
@@ -369,7 +369,7 @@ public class ConnectionService : IConnectionService
         _ = EventBus.PublishAsync(new PeerConnectedEventData(nodeInfo, bestChainHash, bestChainHeight));
     }
 
-    private async Task<GrpcPeer> GetDialedPeerWithEndpointAsync(DnsEndPoint endpoint)
+    private async Task<GrpcPeerBase> GetDialedPeerWithEndpointAsync(DnsEndPoint endpoint)
     {
         var peer = _peerPool.FindPeerByEndpoint(endpoint);
         if (peer != null)
