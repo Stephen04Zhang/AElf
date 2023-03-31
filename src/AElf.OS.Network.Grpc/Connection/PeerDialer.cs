@@ -138,7 +138,6 @@ public class PeerDialer : IPeerDialer
             SessionId = handshake.SessionId.ToByteArray(),
             ProtocolVersion = handshake.HandshakeData.Version,
             IsInbound = true,
-            IsInboundStream = true,
             NodeVersion = handshake.HandshakeData.NodeVersion
         };
         var nodePubkey = AsyncHelper.RunSync(() => _accountService.GetPublicKeyAsync()).ToHex();
@@ -333,9 +332,10 @@ public class PeerDialer : IPeerDialer
             new(ChannelOptions.MaxSendMessageLength, GrpcConstants.DefaultMaxSendMessageLength),
             new(ChannelOptions.MaxReceiveMessageLength, GrpcConstants.DefaultMaxReceiveMessageLength),
             new(ChannelOptions.SslTargetNameOverride, GrpcConstants.DefaultTlsCommonName),
-            new(GrpcConstants.GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS, GrpcConstants.GRPC_ARG_KEEPALIVE_PERMIT_WITHOUT_CALLS_OPEN),
-            new(GrpcConstants.GRPC_ARG_KEEPALIVE_TIMEOUT_MS, GrpcConstants.GRPC_ARG_KEEPALIVE_TIMEOUT_MS_VAL),
-            new(GrpcConstants.GRPC_ARG_KEEPALIVE_TIME_MS, GrpcConstants.GRPC_ARG_KEEPALIVE_TIME_MS_VAL)
+            new(GrpcConstants.GrpcArgKeepalivePermitWithoutCalls, GrpcConstants.GrpcArgKeepalivePermitWithoutCallsOpen),
+            new(GrpcConstants.GrpcArgHttp2MaxPingsWithoutData, GrpcConstants.GrpcArgHttp2MaxPingsWithoutDataVal),
+            new(GrpcConstants.GrpcArgKeepaliveTimeoutMs, GrpcConstants.GrpcArgKeepaliveTimeoutMsVal),
+            new(GrpcConstants.GrpcArgKeepaliveTimeMs, GrpcConstants.GrpcArgKeepaliveTimeMsVal)
         });
 
         var nodePubkey = AsyncHelper.RunSync(() => _accountService.GetPublicKeyAsync()).ToHex();

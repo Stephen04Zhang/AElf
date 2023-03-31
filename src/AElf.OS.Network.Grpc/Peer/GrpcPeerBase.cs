@@ -264,7 +264,7 @@ public abstract class GrpcPeerBase : IPeer
         catch (RpcException ex)
         {
             job.SendCallback?.Invoke(HandleRpcException(ex, $"Could not broadcast to {this}: "));
-            await Task.Delay(GrpcConstants.StreamRecoveryWaitTime);
+            await Task.Delay(StreamRecoveryWaitTime);
             return;
         }
         catch (Exception ex)

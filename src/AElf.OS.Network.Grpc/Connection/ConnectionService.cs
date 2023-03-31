@@ -216,21 +216,14 @@ public class ConnectionService : IConnectionService
             if (oldPeer != null)
             {
                 var oldPeerIsStream = oldPeer.RemoteEndpoint.Port == KernelConstants.ClosedPort;
-                if (oldPeerIsStream && oldPeer.IsInvalid)
-                    if (_peerPool.TryReplace(pubkey, oldPeer, grpcPeer))
-                    {
-                        await oldPeer.DisconnectAsync(false);
-                        Logger.LogDebug("replace connection, oldPeerIsP2P={oldPeerIsStream} IsInvalid={IsInvalid} {pubkey}.", oldPeerIsStream, oldPeer.IsInvalid, grpcPeer.Info.Pubkey);
-                    }
-                    else
-                    {
-                        Logger.LogDebug("Stopping connection, peer already in the pool oldPeerIsP2P={oldPeerIsStream} IsInvalid={IsInvalid} {pubkey}.", oldPeerIsStream, oldPeer.IsInvalid, grpcPeer.Info.Pubkey);
-                        await grpcPeer.DisconnectAsync(false);
-                        return new HandshakeReply { Error = HandshakeError.StreamHandshakeUpgradeFailed };
-                    }
+                if (oldPeerIsStream && oldPeer.IsInvalid && _peerPool.TryReplace(pubkey, oldPeer, grpcPeer))
+                {
+                    await oldPeer.DisconnectAsync(false);
+                    Logger.LogDebug("replace connection, oldPeerIsP2P={oldPeerIsStream} IsInvalid={IsInvalid} {pubkey}.", oldPeerIsStream, oldPeer.IsInvalid, grpcPeer.Info.Pubkey);
+                }
                 else
                 {
-                    Logger.LogDebug($"Stopping connection, peer already in the pool {grpcPeer.Info.Pubkey}.");
+                    Logger.LogDebug("Stopping connection, peer already in the pool oldPeerIsP2P={oldPeerIsStream} IsInvalid={IsInvalid} {pubkey}.", oldPeerIsStream, oldPeer.IsInvalid, grpcPeer.Info.Pubkey);
                     await grpcPeer.DisconnectAsync(false);
                     return new HandshakeReply { Error = HandshakeError.RepeatedConnection };
                 }
@@ -295,14 +288,14 @@ public class ConnectionService : IConnectionService
                 {
                     Logger.LogDebug("Stopping connection, peer already in the pool oldPeerIsP2P={oldPeerIsStream} IsInvalid={IsInvalid} {pubkey}.", oldPeerIsStream, oldPeer.IsInvalid, grpcPeer.Info.Pubkey);
                     await grpcPeer.DisconnectAsync(false);
-                    return new HandshakeReply { Error = HandshakeError.StreamHandshakeUpgradeFailed };
+                    return new HandshakeReply { Error = HandshakeError.RepeatedConnection };
                 }
             }
             else if (!_peerPool.TryAddPeer(grpcPeer)) // add the new peer to the pool
             {
                 Logger.LogDebug("Stopping connection, peer already in the pool {pubkey}.", grpcPeer.Info.Pubkey);
                 await grpcPeer.DisconnectAsync(false);
-                return new HandshakeReply { Error = HandshakeError.StreamHandshakeUpgradeFailed };
+                return new HandshakeReply { Error = HandshakeError.RepeatedConnection };
             }
 
             Logger.LogDebug($"Added to pool {grpcPeer.RemoteEndpoint} - {grpcPeer.Info.Pubkey}.");

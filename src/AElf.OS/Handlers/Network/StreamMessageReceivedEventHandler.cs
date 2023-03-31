@@ -10,7 +10,7 @@ namespace AElf.OS.Handlers;
 public class StreamMessageReceivedEventHandler : ILocalEventHandler<StreamMessageReceivedEvent>, ITransientDependency
 {
     private readonly IStreamService _streamService;
-    public ILogger<AbnormalPeerEventHandler> Logger { get; set; }
+    public ILogger<StreamMessageReceivedEventHandler> Logger { get; set; }
 
     public StreamMessageReceivedEventHandler(IStreamService streamService)
     {

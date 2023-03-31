@@ -8,7 +8,6 @@ public class PeerConnectionInfo
     public int ProtocolVersion { get; set; }
     public Timestamp ConnectionTime { get; set; }
     public bool IsInbound { get; set; }
-    public bool IsInboundStream { get; set; }
     public byte[] SessionId { get; set; }
     public string NodeVersion { get; set; }
 

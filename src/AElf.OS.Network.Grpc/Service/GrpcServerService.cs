@@ -140,7 +140,6 @@ public class GrpcServerService : PeerService.PeerServiceBase
         _ = EventBus.PublishAsync(new BlockReceivedEvent(block, peerPubkey));
         return Task.CompletedTask;
     }
-   
 
     public override async Task<VoidReply> AnnouncementBroadcastStream(
         IAsyncStreamReader<BlockAnnouncement> requestStream, ServerCallContext context)

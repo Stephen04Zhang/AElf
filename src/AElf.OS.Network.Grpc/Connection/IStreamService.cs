@@ -142,7 +142,7 @@ public class StreamService : IStreamService, ISingletonDependency
     {
         var message = StreamMessage.Parser.ParseFrom(reply);
         Logger.LogInformation("receive {requestId} {streamType} {meta}", message.RequestId, message.StreamType, message.Meta);
-        if (await ProcessStreamRequest(message)) return;
+        if (await ProcessStreamReply(message)) return;
 
         var peer = _peerPool.FindPeerByPublicKey(clientPubKey) as GrpcStreamPeer;
         if (peer == null)
@@ -190,7 +190,7 @@ public class StreamService : IStreamService, ISingletonDependency
         if (!success) await _connectionService.TrySchedulePeerReconnectionAsync(peer);
     }
 
-    private async Task<bool> ProcessStreamRequest(StreamMessage reply)
+    private async Task<bool> ProcessStreamReply(StreamMessage reply)
     {
         if (reply.StreamType is not (StreamType.HandShakeReply or StreamType.DisconnectReply or StreamType.PongReply or StreamType.BlockBroadcastReply or StreamType.TransactionBroadcastReply or StreamType.AnnouncementBroadcastReply
             or StreamType.LibAnnouncementBroadcastReply or StreamType.ConfirmHandShakeReply or StreamType.HealthCheckReply or StreamType.RequestBlockReply or StreamType.RequestBlocksReply or StreamType.GetNodesReply)) return false;
@@ -203,21 +203,6 @@ public class StreamService : IStreamService, ISingletonDependency
     {
         switch (reply.StreamType)
         {
-            case StreamType.HandShakeReply:
-            case StreamType.DisconnectReply:
-            case StreamType.PongReply:
-            case StreamType.BlockBroadcastReply:
-            case StreamType.TransactionBroadcastReply:
-            case StreamType.AnnouncementBroadcastReply:
-            case StreamType.LibAnnouncementBroadcastReply:
-            case StreamType.ConfirmHandShakeReply:
-            case StreamType.HealthCheckReply:
-            case StreamType.RequestBlockReply:
-            case StreamType.RequestBlocksReply:
-            case StreamType.GetNodesReply:
-                Logger.LogWarning("receive {RequestId}", reply.RequestId);
-                _streamTaskResourcePool.TrySetResult(reply.RequestId, reply);
-                break;
             // case StreamType.HandShake:       impossible！！！    
             //     var handshakeReply = await _connectionService.DoHandshakeByStreamAsync(new DnsEndPoint(reply.Meta[GrpcConstants.StreamPeerHostKey], int.Parse(reply.Meta[GrpcConstants.StreamPeerPortKey])), responseStream,
             //         Handshake.Parser.ParseFrom(reply.Body));
