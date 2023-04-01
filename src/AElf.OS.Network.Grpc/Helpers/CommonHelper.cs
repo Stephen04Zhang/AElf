@@ -6,8 +6,8 @@ public class CommonHelper
 {
     public static string GenerateRequestId()
     {
-        var timeMs = DateTime.UtcNow.Second;
+        var timeMs = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         var guid = Guid.NewGuid().ToString();
-        return timeMs.ToString() + '-' + guid;
+        return timeMs.ToString() + '_' + guid;
     }
 }

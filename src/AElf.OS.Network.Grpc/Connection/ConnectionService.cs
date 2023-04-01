@@ -12,11 +12,12 @@ using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
 
-public class ConnectionService : IConnectionService
+public class ConnectionService : IConnectionService, ISingletonDependency
 {
     private readonly IHandshakeProvider _handshakeProvider;
     private readonly IPeerDialer _peerDialer;

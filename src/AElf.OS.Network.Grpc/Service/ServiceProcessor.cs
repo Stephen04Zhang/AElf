@@ -7,10 +7,10 @@ using AElf.OS.Network.Application;
 using AElf.OS.Network.Domain;
 using AElf.OS.Network.Events;
 using AElf.OS.Network.Extensions;
-using AElf.OS.Network.Infrastructure;
 using AElf.Types;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
@@ -28,7 +28,7 @@ public interface IGrpcRequestProcessor
     Task<VoidReply> DisconnectAsync(DisconnectReason request, string peerInfo, string pubKey, string requestId = null);
 }
 
-public class GrpcRequestProcessor : IGrpcRequestProcessor
+public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
 {
     private readonly IBlockchainService _blockchainService;
     private readonly IConnectionService _connectionService;

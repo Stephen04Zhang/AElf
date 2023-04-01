@@ -6,6 +6,7 @@ using Grpc.Core;
 using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
@@ -30,7 +31,8 @@ public class GrpcServerService : PeerService.PeerServiceBase
         Logger = NullLogger<GrpcServerService>.Instance;
     }
 
-
+    private NetworkOptions NetworkOptions => NetworkOptionsSnapshot.Value;
+    public IOptionsSnapshot<NetworkOptions> NetworkOptionsSnapshot { get; set; }
     public ILocalEventBus EventBus { get; set; }
     public ILogger<GrpcServerService> Logger { get; set; }
 
@@ -182,7 +184,11 @@ public class GrpcServerService : PeerService.PeerServiceBase
 
     public override async Task<NodeList> GetNodes(NodesRequest request, ServerCallContext context)
     {
-        return await _grpcRequestProcessor.GetNodesAsync(request, context.GetPeerInfo());
+        var blocks = await _grpcRequestProcessor.GetNodesAsync(request, context.GetPeerInfo());
+        if (!NetworkOptions.CompressBlocksOnRequest) return blocks;
+        var headers = new Metadata { new(GrpcConstants.GrpcRequestCompressKey, GrpcConstants.GrpcGzipConst) };
+        await context.WriteResponseHeadersAsync(headers);
+        return blocks;
     }
 
     public override Task<PongReply> Ping(PingRequest request, ServerCallContext context)

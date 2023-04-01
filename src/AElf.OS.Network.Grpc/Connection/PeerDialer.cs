@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -261,9 +262,8 @@ public class PeerDialer : IPeerDialer
             var metadata = new Metadata
             {
                 { GrpcConstants.RetryCountMetadataKey, "0" },
-                { GrpcConstants.TimeoutMetadataKey, (NetworkOptions.PeerDialTimeout * 2).ToString() },
             };
-            var call = client.Client.RequestByStream(metadata);
+            var call = client.Client.RequestByStream(new CallOptions().WithHeaders(metadata));
             var streamClient = _streamClientProvider.GetStreamClient(call.RequestStream);
             var tokenSource = new CancellationTokenSource();
 

@@ -340,7 +340,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             metadata.Add(kv.Key, kv.Value);
         }
 
-        metadata.Add(GrpcConstants.SessionIdMetadataKey, OutboundSessionId);
+        metadata.Add(GrpcConstants.SessionIdMetadataKey, Info.SessionId);
         return metadata;
     }
 
