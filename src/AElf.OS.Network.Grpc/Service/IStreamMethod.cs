@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using AElf.OS.Network.Grpc.Helpers;
 using AElf.Types;
@@ -13,7 +14,7 @@ namespace AElf.OS.Network.Grpc;
 public interface IStreamMethod
 {
     MessageType Method { get; }
-    Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null);
+    Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream);
 }
 
 public abstract class StreamMethod : IStreamMethod
@@ -28,7 +29,7 @@ public abstract class StreamMethod : IStreamMethod
         GrpcRequestProcessor = grpcRequestProcessor;
     }
 
-    public abstract Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null);
+    public abstract Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream);
 }
 
 public class HandShakeMethod : StreamMethod, ISingletonDependency
@@ -41,7 +42,7 @@ public class HandShakeMethod : StreamMethod, ISingletonDependency
         Logger = NullLogger<HandShakeMethod>.Instance;
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         if (streamContext is not ServiceStreamContext serviceStreamContext) return new VoidReply();
         var context = serviceStreamContext.Context;
@@ -73,7 +74,7 @@ public class GetNodesMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         return await GrpcRequestProcessor.GetNodesAsync(NodesRequest.Parser.ParseFrom(request.Message), streamContext.GetPeerInfo());
     }
@@ -87,9 +88,9 @@ public class HealthCheckMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
-        return new HealthCheckReply();
+        return Task.FromResult(new HealthCheckReply() as IMessage);
     }
 }
 
@@ -101,9 +102,9 @@ public class PingMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
-        return new PongReply();
+        return Task.FromResult(new PongReply() as IMessage);
     }
 }
 
@@ -115,9 +116,9 @@ public class DisconnectMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
-        await GrpcRequestProcessor.DisconnectAsync(DisconnectReason.Parser.ParseFrom(request.Message), request.RequestId, streamContext.GetPeerInfo(), streamContext.GetPubKey());
+        await GrpcRequestProcessor.DisconnectAsync(DisconnectReason.Parser.ParseFrom(request.Message), streamContext.GetPeerInfo(), streamContext.GetPubKey(), request.RequestId);
         return new VoidReply();
     }
 }
@@ -130,7 +131,7 @@ public class ConfirmHandShakeMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         await GrpcRequestProcessor.ConfirmHandshakeAsync(streamContext.GetPeerInfo(), streamContext.GetPubKey(), request.RequestId);
         return new VoidReply();
@@ -145,7 +146,7 @@ public class RequestBlockMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         return await GrpcRequestProcessor.GetBlockAsync(BlockRequest.Parser.ParseFrom(request.Message), streamContext.GetPeerInfo(), streamContext.GetPubKey(), request.RequestId);
     }
@@ -159,7 +160,7 @@ public class RequestBlocksMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         return await GrpcRequestProcessor.GetBlocksAsync(BlocksRequest.Parser.ParseFrom(request.Message), streamContext.GetPeerInfo(), request.RequestId);
     }
@@ -173,7 +174,7 @@ public class BlockBroadcastMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         await GrpcRequestProcessor.ProcessBlockAsync(BlockWithTransactions.Parser.ParseFrom(request.Message), streamContext.GetPubKey());
         return new VoidReply();
@@ -188,7 +189,7 @@ public class AnnouncementBroadcastMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         await GrpcRequestProcessor.ProcessAnnouncementAsync(BlockAnnouncement.Parser.ParseFrom(request.Message), streamContext.GetPubKey());
         return new VoidReply();
@@ -203,7 +204,7 @@ public class TransactionBroadcastMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         await GrpcRequestProcessor.ProcessTransactionAsync(Transaction.Parser.ParseFrom(request.Message), streamContext.GetPubKey());
         return new VoidReply();
@@ -218,7 +219,7 @@ public class LibAnnouncementBroadcastMethod : StreamMethod, ISingletonDependency
     {
     }
 
-    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream = null)
+    public override async Task<IMessage> InvokeAsync(StreamMessage request, IStreamContext streamContext, IAsyncStreamWriter<StreamMessage> responseStream)
     {
         await GrpcRequestProcessor.ProcessLibAnnouncementAsync(LibAnnouncement.Parser.ParseFrom(request.Message), streamContext.GetPubKey());
         return new VoidReply();

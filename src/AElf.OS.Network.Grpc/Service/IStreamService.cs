@@ -156,7 +156,7 @@ public class StreamService : IStreamService, ISingletonDependency
             return false;
         }
 
-        Logger.LogWarning("Unequal session id, {Peer} ({InboundSessionId} vs {sessionId}) {MessageType} {pubkey}", streamPeer, streamPeer.InboundSessionId.ToHex(), sessionId.ToHex(), message.MessageType, streamPeer.Info.Pubkey);
+        Logger.LogWarning("Unequal session id, ({InboundSessionId} {infoSession} vs {sessionId}) {MessageType} {pubkey}  {Peer}", streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex(), sessionId.ToHex(), message.MessageType, streamPeer.Info.Pubkey, streamPeer);
         return false;
     }
 
