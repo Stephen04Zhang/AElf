@@ -14,6 +14,8 @@ public class GrpcStreamPeer : GrpcPeer
     private StreamClient _streamClient;
     private Task _serveTask;
     private CancellationTokenSource _streamListenTaskTokenSource;
+    public byte[] StreamInboundSessionId { get; set; }
+    public byte[] SessionId { get; set; }
 
     public GrpcStreamPeer(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo) : base(client,
         remoteEndpoint, peerConnectionInfo)

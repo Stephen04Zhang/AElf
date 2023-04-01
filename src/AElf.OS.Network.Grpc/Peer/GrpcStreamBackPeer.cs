@@ -15,7 +15,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
     private readonly StreamClient _streamClient;
     private readonly Dictionary<string, string> _peerMeta;
 
-    public GrpcStreamBackPeer(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo, StreamClient streamClient, Dictionary<string, string> peerMeta) : base(client, remoteEndpoint, peerConnectionInfo)
+    public GrpcStreamBackPeer(DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo, StreamClient streamClient, Dictionary<string, string> peerMeta) : base(null, remoteEndpoint, peerConnectionInfo)
     {
         _streamClient = streamClient;
         _peerMeta = peerMeta;

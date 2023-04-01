@@ -17,7 +17,7 @@ using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
 
-public class ConnectionService : IConnectionService, ISingletonDependency
+public class ConnectionService : IConnectionService
 {
     private readonly IHandshakeProvider _handshakeProvider;
     private readonly IPeerDialer _peerDialer;
