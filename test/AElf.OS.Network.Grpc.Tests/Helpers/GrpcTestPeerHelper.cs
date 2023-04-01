@@ -15,7 +15,7 @@ public static class GrpcTestPeerHelper
         return new("127.0.0.1:9999", ChannelCredentials.Insecure);
     }
 
-    public static GrpcPeer CreateBasicPeer(string ip, string pubkey)
+    public static GrpcPeerBase CreateBasicPeer(string ip, string pubkey)
     {
         return CreatePeerWithInfo(ip,
             new PeerConnectionInfo
@@ -31,7 +31,7 @@ public static class GrpcTestPeerHelper
     {
         AElfPeerEndpointHelper.TryParse(ip, out var endpoint);
         var client = new GrpcClient(CreateMockChannel(), null);
-        var peer = new GrpcPeer(new OutboundPeerHolder(client, info), endpoint, info);
+        var peer = new GrpcPeer(client, endpoint, info);
         peer.InboundSessionId = new byte[] { 0, 1, 2 };
         return peer;
     }
@@ -41,7 +41,7 @@ public static class GrpcTestPeerHelper
         AElfPeerEndpointHelper.TryParse(ip, out var endpoint);
         var grpcClient = new GrpcClient(CreateMockChannel(), client);
         var info = new PeerConnectionInfo { Pubkey = pubkey, SessionId = new byte[] { 0, 1, 2 }, NodeVersion = NodeVersion };
-        var peer = new GrpcPeer(new OutboundPeerHolder(grpcClient, info), endpoint, info);
+        var peer = new GrpcPeer(grpcClient, endpoint, info);
         peer.InboundSessionId = new byte[] { 0, 1, 2 };
         return peer;
     }
@@ -75,7 +75,7 @@ public static class GrpcTestPeerHelper
 
         AElfPeerEndpointHelper.TryParse(ipAddress, out var endpoint);
         var grpcClient = new GrpcClient(channel, client);
-        var peer = new GrpcPeer(new OutboundPeerHolder(grpcClient, connectionInfo), endpoint, connectionInfo);
+        var peer = new GrpcPeer(grpcClient, endpoint, connectionInfo);
         peer.InboundSessionId = new byte[] { 0, 1, 2 };
 
         return peer;

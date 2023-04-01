@@ -63,7 +63,7 @@ public class ConnectionServiceTests : GrpcNetworkTestBase
     public async Task Connect_PeerAlreadyInPoolAndIsInvalid_Test()
     {
         var peer = CreatePeerAndAddToPeerPool(NetworkTestConstants.GoodPeerEndpoint, NetworkTestConstants.FakePubkey2);
-        peer.Holder.IsConnected = false;
+        peer.IsConnected = false;
         peer.Info.ConnectionTime = TimestampHelper.GetUtcNow()
             .AddMilliseconds(-NetworkConstants.PeerConnectionTimeout - 1000);
 
@@ -430,7 +430,7 @@ public class ConnectionServiceTests : GrpcNetworkTestBase
         return new Handshake { HandshakeData = data, Signature = ByteString.CopyFrom(signature) };
     }
 
-    private GrpcPeer CreatePeerAndAddToPeerPool(string ip = NetworkTestConstants.FakeIpEndpoint,
+    private GrpcPeerBase CreatePeerAndAddToPeerPool(string ip = NetworkTestConstants.FakeIpEndpoint,
         string pubkey = NetworkTestConstants.FakePubkey)
     {
         var peer = GrpcTestPeerHelper.CreateBasicPeer(ip, pubkey);

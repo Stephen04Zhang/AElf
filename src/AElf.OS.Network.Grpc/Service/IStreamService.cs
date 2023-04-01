@@ -203,7 +203,7 @@ public class StreamService : IStreamService, ISingletonDependency
             return false;
         }
 
-        var sessionStr = message.Meta[GrpcConstants.SessionIdMetadataKey];
+        string sessionStr = message.Meta[GrpcConstants.SessionIdMetadataKey];
         if (sessionStr == null)
         {
             Logger.LogWarning("Wrong context session id {pubkey}, {MessageType}, {peer}", streamPeer.Info.Pubkey, message.MessageType, streamPeer);
@@ -212,14 +212,14 @@ public class StreamService : IStreamService, ISingletonDependency
 
         // check that the peers session is equal to one announced in the headers
         var sessionId = Encoding.ASCII.GetBytes(sessionStr);
-        if (streamPeer.InboundSessionId.BytesEqual(Encoding.ASCII.GetBytes(sessionStr))) return true;
+        if (streamPeer.InboundSessionId.BytesEqual(sessionId)) return true;
         if (streamPeer.InboundSessionId == null)
         {
             Logger.LogWarning("Wrong inbound session id {peer}, {requestId}", streamPeer, message.RequestId);
             return false;
         }
 
-        Logger.LogWarning("Unequal session id, {Peer} ({InboundSessionId} vs {sessionId}) {pubkey}", streamPeer, streamPeer.InboundSessionId.ToHex(), sessionStr, streamPeer.Info.Pubkey);
+        Logger.LogWarning("Unequal session id, {Peer} ({InboundSessionId} vs {sessionId}) {MessageType} {pubkey}", streamPeer, streamPeer.InboundSessionId.ToHex(), sessionId.ToHex(), message.MessageType, streamPeer.Info.Pubkey);
         return false;
     }
 

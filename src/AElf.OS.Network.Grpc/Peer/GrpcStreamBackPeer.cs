@@ -31,7 +31,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         try
         {
             await _streamClient.DisconnectAsync(new DisconnectReason
-                { Why = DisconnectReason.Types.Reason.Shutdown }, AddPeerMeta(new Metadata { { GrpcConstants.SessionIdMetadataKey, Info.SessionId } }));
+                { Why = DisconnectReason.Types.Reason.Shutdown }, AddPeerMeta(new Metadata { { GrpcConstants.SessionIdMetadataKey, OutboundSessionId } }));
         }
         catch (Exception)
         {
@@ -339,6 +339,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         {
             metadata.Add(kv.Key, kv.Value);
         }
+
         metadata.Add(GrpcConstants.SessionIdMetadataKey, OutboundSessionId);
         return metadata;
     }
