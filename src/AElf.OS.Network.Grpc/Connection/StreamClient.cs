@@ -123,7 +123,7 @@ public class StreamClient
         {
             if (e.IsBinary)
             {
-                streamMessage.Meta.Add(e.Key, Encoding.ASCII.GetString(e.ValueBytes));
+                streamMessage.Meta.Add(e.Key, e.ValueBytes.ToHex());
                 continue;
             }
 

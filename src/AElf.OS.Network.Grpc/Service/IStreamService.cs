@@ -55,7 +55,7 @@ public class StreamService : IStreamService, ISingletonDependency
         var streamPeer = peer as GrpcStreamPeer;
         try
         {
-            if (!AuthMetaContext(message, streamPeer)) return;
+            if (!AuthReplyMetaContext(message, streamPeer)) return;
             await DoProcessAsync(message, streamPeer?.GetResponseStream(), new StreamMessageMetaStreamContext(message.Meta));
             Logger.LogInformation("handle stream call success, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
         }
@@ -97,8 +97,13 @@ public class StreamService : IStreamService, ISingletonDependency
             var method = _streamMethods.FirstOrDefault(e => e.Method == request.MessageType);
             if (method == null) Logger.LogWarning("unhandled stream request: {requestId} {type}", request.RequestId, request.StreamType);
             var reply = method == null ? new VoidReply() : await method.InvokeAsync(request, streamContext, responseStream);
+            var peer = _peerPool.FindPeerByPublicKey(streamContext.GetPubKey());
             await responseStream.WriteAsync(new StreamMessage
-                { StreamType = StreamType.Reply, MessageType = request.MessageType, RequestId = request.RequestId, Message = reply == null ? new VoidReply().ToByteString() : reply.ToByteString() });
+            {
+                StreamType = StreamType.Reply, MessageType = request.MessageType,
+                Meta = { { GrpcConstants.SessionIdMetadataKey, peer.Info.SessionId.ToHex() } },
+                RequestId = request.RequestId, Message = reply == null ? new VoidReply().ToByteString() : reply.ToByteString()
+            });
         }
         catch (Exception e)
         {
@@ -131,7 +136,7 @@ public class StreamService : IStreamService, ISingletonDependency
     }
 
 
-    private bool AuthMetaContext(StreamMessage message, GrpcStreamPeer streamPeer)
+    private bool AuthReplyMetaContext(StreamMessage message, GrpcStreamPeer streamPeer)
     {
         if (!IsNeedAuth(message)) return true;
         if (streamPeer == null)
@@ -140,30 +145,28 @@ public class StreamService : IStreamService, ISingletonDependency
             return false;
         }
 
-        string sessionStr = message.Meta[GrpcConstants.SessionIdMetadataKey];
-        if (sessionStr == null)
+        var sessionIdHex = message.Meta[GrpcConstants.SessionIdMetadataKey];
+        if (sessionIdHex == null)
         {
             Logger.LogWarning("Wrong context session id {pubkey}, {MessageType}, {peer}", streamPeer.Info.Pubkey, message.MessageType, streamPeer);
             return false;
         }
 
         // check that the peers session is equal to one announced in the headers
-        var sessionId = Encoding.ASCII.GetBytes(sessionStr);
-        if (streamPeer.InboundSessionId.BytesEqual(sessionId)) return true;
+        if (streamPeer.InboundSessionId.ToHex().Equals(sessionIdHex)) return true;
         if (streamPeer.InboundSessionId == null)
         {
             Logger.LogWarning("Wrong inbound session id {peer}, {requestId}", streamPeer, message.RequestId);
             return false;
         }
 
-        Logger.LogWarning("Unequal session id, ({InboundSessionId} {infoSession} vs {sessionId}) {MessageType} {pubkey}  {Peer}", streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex(), sessionId.ToHex(), message.MessageType, streamPeer.Info.Pubkey, streamPeer);
+        Logger.LogWarning("Unequal session id, ({InboundSessionId} {infoSession} vs {sessionId}) {streamType}-{MessageType} {pubkey}  {Peer}", streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex(),
+            sessionIdHex, message.StreamType, message.MessageType, streamPeer.Info.Pubkey, streamPeer);
         return false;
     }
 
-
     private bool IsNeedAuth(StreamMessage streamMessage)
     {
-        return false;
-        // return streamMessage.StreamType == StreamType.Request && streamMessage.MessageType is not MessageType.Ping or MessageType.HandShake;
+        return streamMessage.StreamType == StreamType.Request && (streamMessage.MessageType is not MessageType.Ping or MessageType.HandShake or MessageType.HealthCheck);
     }
 }
