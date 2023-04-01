@@ -163,6 +163,7 @@ public class StreamService : IStreamService, ISingletonDependency
 
     private bool IsNeedAuth(StreamMessage streamMessage)
     {
-        return streamMessage.StreamType == StreamType.Request && streamMessage.MessageType is not MessageType.Ping or MessageType.HandShake;
+        return false;
+        // return streamMessage.StreamType == StreamType.Request && streamMessage.MessageType is not MessageType.Ping or MessageType.HandShake;
     }
 }
