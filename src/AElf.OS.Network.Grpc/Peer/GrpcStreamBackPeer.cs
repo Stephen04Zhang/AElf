@@ -39,36 +39,6 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         }
     }
 
-    public override async Task PingAsync()
-    {
-        if (_streamClient == null) return;
-        try
-        {
-            var data = new Metadata
-            {
-                { GrpcConstants.TimeoutMetadataKey, PingRequestTimeout.ToString() },
-                { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
-            };
-            await _streamClient.PingAsync(AddPeerMeta(data));
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, "BroadcastBlockAsync failed");
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
-        }
-        catch (Exception e)
-        {
-            if (e is TimeoutException or InvalidOperationException)
-            {
-                await DisconnectAsync(true);
-            }
-
-            throw;
-        }
-    }
-
     public override async Task ConfirmHandshakeAsync()
     {
         var request = new GrpcRequest { ErrorMessage = "Could not send confirm handshake." };

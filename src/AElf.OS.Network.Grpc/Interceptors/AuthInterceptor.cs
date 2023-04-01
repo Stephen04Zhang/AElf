@@ -25,6 +25,7 @@ public class AuthInterceptor : Interceptor
     {
         try
         {
+            Logger.LogDebug("context sessionId {sessionId}", context.GetSessionId().ToHex());
             if (IsNeedAuth(context.Method))
             {
                 var peer = _peerPool.FindPeerByPublicKey(context.GetPublicKey());
@@ -73,7 +74,7 @@ public class AuthInterceptor : Interceptor
     {
         return methodName != GetFullMethodName(nameof(PeerService.PeerServiceBase.Ping)) &&
                methodName != GetFullMethodName(nameof(PeerService.PeerServiceBase.DoHandshake)) &&
-               methodName != GetFullMethodName(nameof(PeerService.PeerServiceBase.RequestByStream));
+               methodName != GetFullMethodName(nameof(PeerService.PeerServiceBase.RequestByStream));//we can not read stream sessionId here so we auth it in Stream service
     }
 
     private string GetFullMethodName(string methodName)

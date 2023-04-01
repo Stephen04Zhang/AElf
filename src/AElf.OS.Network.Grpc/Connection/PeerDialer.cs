@@ -88,7 +88,6 @@ public class PeerDialer : IPeerDialer
         };
         GrpcPeerBase peer;
 
-        Logger.LogDebug("dail peer info Handshake={Handshake}", handshake);
         if (CanDoHandshakeByStream(handshake, handshakeReply.Handshake))
         {
             var streamPeer = new GrpcStreamPeer(client, remoteEndpoint, connectionInfo);
@@ -101,6 +100,7 @@ public class PeerDialer : IPeerDialer
         }
 
         peer.InboundSessionId = handshake.SessionId.ToByteArray();
+        Logger.LogDebug("peer sessionId {InboundSessionId} {sessionId}", peer.InboundSessionId.ToHex(), connectionInfo.SessionId.ToHex());
         peer.UpdateLastReceivedHandshake(handshakeReply.Handshake);
 
         peer.UpdateLastSentHandshake(handshake);
@@ -253,9 +253,9 @@ public class PeerDialer : IPeerDialer
             }, tokenSource.Token), tokenSource);
             var handshake = await _handshakeProvider.GetHandshakeAsync();
             var handShakeReply = await streamClient.HandShakeAsync(new HandshakeRequest { Handshake = handshake }, metadata);
-            peer.StreamInboundSessionId = handshake.SessionId.ToByteArray();
-            peer.SessionId = handShakeReply.Handshake.SessionId.ToByteArray();
-            Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.handShakeReply={handShakeReply}", remoteEndPoint.ToString(), handShakeReply.Handshake);
+            peer.StreamInboundSessionId = handshake.SessionId.ToHex();
+            peer.SessionId = handShakeReply.Handshake.SessionId.ToHex();
+            Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", remoteEndPoint.ToString(), peer.StreamInboundSessionId, peer.SessionId);
         }
         catch (Exception)
         {

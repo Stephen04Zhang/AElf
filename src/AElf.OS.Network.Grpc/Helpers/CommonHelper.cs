@@ -2,7 +2,7 @@ using System;
 
 namespace AElf.OS.Network.Grpc.Helpers;
 
-public class CommonHelper
+public static class CommonHelper
 {
     public static string GenerateRequestId()
     {

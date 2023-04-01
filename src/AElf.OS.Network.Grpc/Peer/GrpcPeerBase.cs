@@ -190,8 +190,6 @@ public abstract class GrpcPeerBase : IPeer
 
     public abstract Task DisconnectAsync(bool gracefulDisconnect);
 
-    public abstract Task PingAsync();
-
     public void UpdateLastReceivedHandshake(Handshake handshake)
     {
         LastKnownLibHeight = handshake.HandshakeData.LastIrreversibleBlockHeight;

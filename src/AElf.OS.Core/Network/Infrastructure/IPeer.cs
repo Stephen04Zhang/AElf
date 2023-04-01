@@ -50,5 +50,4 @@ public interface IPeer
 
     Dictionary<string, List<RequestMetric>> GetRequestMetrics();
     Task DisconnectAsync(bool gracefulDisconnect);
-    Task PingAsync();
 }

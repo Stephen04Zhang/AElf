@@ -165,22 +165,6 @@ public class GrpcPeer : GrpcPeerBase
         }
     }
 
-    public override async Task PingAsync()
-    {
-        var request = new GrpcRequest
-        {
-            ErrorMessage = $"ping failed.",
-            MetricInfo = $"ping"
-        };
-
-        var data = new Metadata
-        {
-            { GrpcConstants.TimeoutMetadataKey, PingRequestTimeout.ToString() },
-            { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
-        };
-        await RequestAsync(() => _client.PingAsync(new PingRequest(), data), request);
-    }
-
     public override async Task ConfirmHandshakeAsync()
     {
         var request = new GrpcRequest { ErrorMessage = "Could not send confirm handshake." };

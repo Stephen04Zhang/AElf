@@ -14,8 +14,8 @@ public class GrpcStreamPeer : GrpcPeer
     private StreamClient _streamClient;
     private Task _serveTask;
     private CancellationTokenSource _streamListenTaskTokenSource;
-    public byte[] StreamInboundSessionId { get; set; }
-    public byte[] SessionId { get; set; }
+    public string StreamInboundSessionId { get; set; }
+    public string SessionId { get; set; }
 
     public GrpcStreamPeer(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo) : base(client,
         remoteEndpoint, peerConnectionInfo)
@@ -28,18 +28,6 @@ public class GrpcStreamPeer : GrpcPeer
         _streamClient = streamClient;
         _serveTask = serveTask;
         _streamListenTaskTokenSource = tokenSource;
-    }
-
-    public override async Task PingAsync()
-    {
-        await base.PingAsync();
-        if (_streamClient == null) return;
-        var data = new Metadata
-        {
-            { GrpcConstants.TimeoutMetadataKey, PingRequestTimeout.ToString() },
-            { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
-        };
-        await _streamClient.PingAsync(data);
     }
 
     public override async Task CheckHealthAsync()
