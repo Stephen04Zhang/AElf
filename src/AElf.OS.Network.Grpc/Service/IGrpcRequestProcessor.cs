@@ -22,10 +22,10 @@ public interface IGrpcRequestProcessor
     Task ProcessTransactionAsync(Transaction tx, string peerPubkey);
     Task ProcessLibAnnouncementAsync(LibAnnouncement announcement, string peerPubkey);
     Task<NodeList> GetNodesAsync(NodesRequest request, string peerInfo);
-    Task<BlockReply> GetBlockAsync(BlockRequest request, string peerInfo, string pubKey, string requestId = null);
-    Task<BlockList> GetBlocksAsync(BlocksRequest request, string peerInf, string requestId = null);
-    Task<VoidReply> ConfirmHandshakeAsync(string peerInfo, string pubKey, string requestId = null);
-    Task<VoidReply> DisconnectAsync(DisconnectReason request, string peerInfo, string pubKey, string requestId = null);
+    Task<BlockReply> GetBlockAsync(BlockRequest request, string peerInfo, string peerPubkey, string requestId = null);
+    Task<BlockList> GetBlocksAsync(BlocksRequest request, string peerInfo, string requestId = null);
+    Task<VoidReply> ConfirmHandshakeAsync(string peerInfo, string peerPubkey, string requestId = null);
+    Task<VoidReply> DisconnectAsync(DisconnectReason request, string peerInfo, string peerPubkey, string requestId = null);
 }
 
 public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
@@ -121,7 +121,7 @@ public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
     ///     of <see cref="BlockRequest.Hash" /> is not null, the request is by ID, otherwise it will be
     ///     by height.
     /// </summary>
-    public async Task<BlockReply> GetBlockAsync(BlockRequest request, string peerInfo, string pubKey, string requestId)
+    public async Task<BlockReply> GetBlockAsync(BlockRequest request, string peerInfo, string peerPubkey, string requestId)
     {
         if (request == null || request.Hash == null || _syncStateService.SyncState != SyncState.Finished)
             return new BlockReply();
@@ -139,13 +139,13 @@ public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
             }
             else
             {
-                var peer = _connectionService.GetPeerByPubkey(pubKey);
+                var peer = _connectionService.GetPeerByPubkey(peerPubkey);
                 peer.TryAddKnownBlock(block.GetHash());
             }
         }
         catch (Exception e)
         {
-            Logger.LogWarning(e, $"Request block error: {pubKey}");
+            Logger.LogWarning(e, $"Request block error: {peerPubkey}");
             throw;
         }
 
@@ -207,12 +207,12 @@ public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
         return nodes;
     }
 
-    public async Task<VoidReply> ConfirmHandshakeAsync(string peerInfo, string pubKey, string requestId)
+    public Task<VoidReply> ConfirmHandshakeAsync(string peerInfo, string peerPubkey, string requestId)
     {
         try
         {
             Logger.LogDebug("Peer {peerInfo} has requested a handshake confirmation. requestId={requestId}", peerInfo, requestId);
-            _connectionService.ConfirmHandshake(pubKey);
+            _connectionService.ConfirmHandshake(peerPubkey);
         }
         catch (Exception e)
         {
@@ -220,15 +220,15 @@ public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
             throw;
         }
 
-        return new VoidReply();
+        return Task.FromResult(new VoidReply());
     }
 
-    public async Task<VoidReply> DisconnectAsync(DisconnectReason request, string peerInfo, string pubKey, string requestId)
+    public async Task<VoidReply> DisconnectAsync(DisconnectReason request, string peerInfo, string peerPubkey, string requestId)
     {
         Logger.LogDebug("Peer {peerInfo} has sent a disconnect request. reason={reason} requestId={requestId}", peerInfo, request, requestId);
         try
         {
-            await _connectionService.RemovePeerAsync(pubKey);
+            await _connectionService.RemovePeerAsync(peerPubkey);
         }
         catch (Exception e)
         {
@@ -241,7 +241,7 @@ public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
 
 
     /// <summary>
-    ///     Try to get the peer based on pubkey.
+    ///     Try to get the peer based on peerPubkey.
     /// </summary>
     /// <param name="peerPubkey"></param>
     /// <returns></returns>
