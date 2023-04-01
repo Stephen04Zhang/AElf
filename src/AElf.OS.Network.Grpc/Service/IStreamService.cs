@@ -16,8 +16,8 @@ namespace AElf.OS.Network.Grpc;
 
 public interface IStreamService
 {
-    Task ProcessReplyAsync(ByteString reply, string clientPubKey);
-    Task ProcessRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, ServerCallContext context);
+    Task ProcessStreamReplyAsync(ByteString reply, string clientPubKey);
+    Task ProcessStreamRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, ServerCallContext context);
 }
 
 public class StreamService : IStreamService, ISingletonDependency
@@ -27,25 +27,26 @@ public class StreamService : IStreamService, ISingletonDependency
     private readonly IStreamTaskResourcePool _streamTaskResourcePool;
     private readonly IPeerPool _peerPool;
     private readonly ITaskQueueManager _taskQueueManager;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IGrpcRequestProcessor _grpcRequestProcessor;
 
 
-    public StreamService(IConnectionService connectionService, IStreamTaskResourcePool streamTaskResourcePool, IPeerPool peerPool, ITaskQueueManager taskQueueManager, IServiceProvider serviceProvider)
+    public StreamService(IConnectionService connectionService, IStreamTaskResourcePool streamTaskResourcePool, IPeerPool peerPool, ITaskQueueManager taskQueueManager, IGrpcRequestProcessor grpcRequestProcessor)
     {
         Logger = NullLogger<StreamService>.Instance;
         _connectionService = connectionService;
         _streamTaskResourcePool = streamTaskResourcePool;
         _peerPool = peerPool;
         _taskQueueManager = taskQueueManager;
-        _serviceProvider = serviceProvider;
+        _grpcRequestProcessor = grpcRequestProcessor;
     }
 
-    public async Task ProcessRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, ServerCallContext context)
+    public async Task ProcessStreamRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, ServerCallContext context)
     {
-        await DoProcessAsync(request, responseStream, new ServiceContextProvider(context));
+         //todo do auth here
+        await DoProcessAsync(request, responseStream, new ServiceStreamContext(context));
     }
 
-    public async Task ProcessReplyAsync(ByteString reply, string clientPubKey)
+    public async Task ProcessStreamReplyAsync(ByteString reply, string clientPubKey)
     {
         var message = StreamMessage.Parser.ParseFrom(reply);
         Logger.LogInformation("receive {requestId} {streamType} {meta}", message.RequestId, message.StreamType, message.Meta);
@@ -55,7 +56,7 @@ public class StreamService : IStreamService, ISingletonDependency
         try
         {
             if (!AuthMetaContext(message, streamPeer)) return;
-            await DoProcessAsync(message, streamPeer?.GetResponseStream(), new StreamMessageMetaContextProvider(message.Meta));
+            await DoProcessAsync(message, streamPeer?.GetResponseStream(), new StreamMessageMetaStreamContext(message.Meta));
             Logger.LogInformation("handle stream call success, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
         }
         catch (RpcException ex)
@@ -70,7 +71,7 @@ public class StreamService : IStreamService, ISingletonDependency
         }
     }
 
-    private async Task DoProcessAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IContextProvider contextProvider)
+    private async Task DoProcessAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IStreamContext streamContext)
     {
         Logger.LogInformation("receive {requestId} {streamType}", request.RequestId, request.StreamType);
         switch (request.StreamType)
@@ -80,7 +81,7 @@ public class StreamService : IStreamService, ISingletonDependency
                 _streamTaskResourcePool.TrySetResult(request.RequestId, request);
                 return;
             case StreamType.Request:
-                await ProcessRequestAsync(request, responseStream, contextProvider);
+                await ProcessRequestAsync(request, responseStream, streamContext);
                 return;
             case StreamType.Unknown:
             default:
@@ -89,19 +90,19 @@ public class StreamService : IStreamService, ISingletonDependency
         }
     }
 
-    private async Task ProcessRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IContextProvider contextProvider)
+    private async Task ProcessRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IStreamContext streamContext)
     {
         try
         {
             IMessage reply = null;
             switch (request.MessageType)
-            {
+            { //todo do strategy impl here
                 case MessageType.HandShake:
-                    var context = (contextProvider as ServiceContextProvider).Context;
+                    var context = (streamContext as ServiceStreamContext).Context;
                     reply = await ProcessHandShakeAsync(request, responseStream, context);
                     break;
                 case MessageType.GetNodes:
-                    reply = await _serviceProvider.GetNodesAsync(NodesRequest.Parser.ParseFrom(request.Message), contextProvider.GetPeerInfo());
+                    reply = await _grpcRequestProcessor.GetNodesAsync(NodesRequest.Parser.ParseFrom(request.Message), streamContext.GetPeerInfo());
                     break;
                 case MessageType.HealthCheck:
                     reply = new HealthCheckReply();
@@ -109,30 +110,30 @@ public class StreamService : IStreamService, ISingletonDependency
                 case MessageType.Ping:
                     break;
                 case MessageType.Disconnect:
-                    await _serviceProvider.DisconnectAsync(DisconnectReason.Parser.ParseFrom(request.Message), request.RequestId, contextProvider.GetPeerInfo(), contextProvider.GetPubKey());
+                    await _grpcRequestProcessor.DisconnectAsync(DisconnectReason.Parser.ParseFrom(request.Message), request.RequestId, streamContext.GetPeerInfo(), streamContext.GetPubKey());
                     break;
                 case MessageType.ConfirmHandShake:
-                    await _serviceProvider.ConfirmHandshakeAsync(request.RequestId, contextProvider.GetPeerInfo(), contextProvider.GetPubKey());
+                    await _grpcRequestProcessor.ConfirmHandshakeAsync(streamContext.GetPeerInfo(), streamContext.GetPubKey(), request.RequestId);
                     break;
 
                 case MessageType.RequestBlock:
-                    reply = await _serviceProvider.RequestBlockAsync(request.RequestId, BlockRequest.Parser.ParseFrom(request.Message), contextProvider.GetPeerInfo(), contextProvider.GetPubKey());
+                    reply = await _grpcRequestProcessor.GetBlockAsync(BlockRequest.Parser.ParseFrom(request.Message), streamContext.GetPeerInfo(), streamContext.GetPubKey(), request.RequestId);
                     break;
                 case MessageType.RequestBlocks:
-                    reply = await _serviceProvider.RequestBlocksAsync(request.RequestId, BlocksRequest.Parser.ParseFrom(request.Message), contextProvider.GetPeerInfo());
+                    reply = await _grpcRequestProcessor.GetBlocksAsync(BlocksRequest.Parser.ParseFrom(request.Message), streamContext.GetPeerInfo(), request.RequestId);
                     break;
 
                 case MessageType.BlockBroadcast:
-                    await _serviceProvider.ProcessBlockAsync(BlockWithTransactions.Parser.ParseFrom(request.Message), contextProvider.GetPubKey());
+                    await _grpcRequestProcessor.ProcessBlockAsync(BlockWithTransactions.Parser.ParseFrom(request.Message), streamContext.GetPubKey());
                     break;
                 case MessageType.AnnouncementBroadcast:
-                    await _serviceProvider.ProcessAnnouncementAsync(BlockAnnouncement.Parser.ParseFrom(request.Message), contextProvider.GetPubKey());
+                    await _grpcRequestProcessor.ProcessAnnouncementAsync(BlockAnnouncement.Parser.ParseFrom(request.Message), streamContext.GetPubKey());
                     break;
                 case MessageType.TransactionBroadcast:
-                    await _serviceProvider.ProcessTransactionAsync(Transaction.Parser.ParseFrom(request.Message), contextProvider.GetPubKey());
+                    await _grpcRequestProcessor.ProcessTransactionAsync(Transaction.Parser.ParseFrom(request.Message), streamContext.GetPubKey());
                     break;
                 case MessageType.LibAnnouncementBroadcast:
-                    await _serviceProvider.ProcessLibAnnouncementAsync(LibAnnouncement.Parser.ParseFrom(request.Message), contextProvider.GetPubKey());
+                    await _grpcRequestProcessor.ProcessLibAnnouncementAsync(LibAnnouncement.Parser.ParseFrom(request.Message), streamContext.GetPubKey());
                     break;
                 case MessageType.Any:
                 default:
@@ -230,18 +231,18 @@ public class StreamService : IStreamService, ISingletonDependency
     }
 }
 
-public interface IContextProvider
+public interface IStreamContext
 {
     string GetPeerInfo();
     string GetPubKey();
     byte[] GetSessionId();
 }
 
-public class ServiceContextProvider : IContextProvider
+public class ServiceStreamContext : IStreamContext
 {
     public ServerCallContext Context;
 
-    public ServiceContextProvider(ServerCallContext context)
+    public ServiceStreamContext(ServerCallContext context)
     {
         Context = context;
     }
@@ -262,11 +263,11 @@ public class ServiceContextProvider : IContextProvider
     }
 }
 
-public class StreamMessageMetaContextProvider : IContextProvider
+public class StreamMessageMetaStreamContext : IStreamContext
 {
     private MapField<string, string> _meta;
 
-    public StreamMessageMetaContextProvider(MapField<string, string> meta)
+    public StreamMessageMetaStreamContext(MapField<string, string> meta)
     {
         _meta = meta;
     }

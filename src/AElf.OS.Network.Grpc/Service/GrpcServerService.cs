@@ -18,13 +18,13 @@ public class GrpcServerService : PeerService.PeerServiceBase
 {
     private readonly IConnectionService _connectionService;
     private readonly IStreamService _streamService;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IGrpcRequestProcessor _grpcRequestProcessor;
 
-    public GrpcServerService(IConnectionService connectionService, IStreamService streamService, IServiceProvider serviceProvider)
+    public GrpcServerService(IConnectionService connectionService, IStreamService streamService, IGrpcRequestProcessor grpcRequestProcessor)
     {
         _connectionService = connectionService;
         _streamService = streamService;
-        _serviceProvider = serviceProvider;
+        _grpcRequestProcessor = grpcRequestProcessor;
 
         EventBus = NullLocalEventBus.Instance;
         Logger = NullLogger<GrpcServerService>.Instance;
@@ -62,7 +62,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
 
         try
         {
-            await requestStream.ForEachAsync(async req => await _streamService.ProcessRequestAsync(req, responseStream, context));
+            await requestStream.ForEachAsync(async req => await _streamService.ProcessStreamRequestAsync(req, responseStream, context));
         }
         catch (Exception e)
         {
@@ -76,7 +76,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
     public override Task<VoidReply> ConfirmHandshake(ConfirmHandshakeRequest request,
         ServerCallContext context)
     {
-        return _serviceProvider.ConfirmHandshakeAsync(null, context.GetPeerInfo(), context.GetPublicKey());
+        return _grpcRequestProcessor.ConfirmHandshakeAsync(context.GetPeerInfo(), context.GetPublicKey());
     }
 
     public override async Task<VoidReply> BlockBroadcastStream(
@@ -87,7 +87,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
         try
         {
             var peerPubkey = context.GetPublicKey();
-            await requestStream.ForEachAsync(async block => await _serviceProvider.ProcessBlockAsync(block, peerPubkey));
+            await requestStream.ForEachAsync(async block => await _grpcRequestProcessor.ProcessBlockAsync(block, peerPubkey));
         }
         catch (Exception e)
         {
@@ -109,7 +109,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
         try
         {
             var peerPubkey = context.GetPublicKey();
-            await requestStream.ForEachAsync(async r => await _serviceProvider.ProcessAnnouncementAsync(r, peerPubkey));
+            await requestStream.ForEachAsync(async r => await _grpcRequestProcessor.ProcessAnnouncementAsync(r, peerPubkey));
         }
         catch (Exception e)
         {
@@ -130,7 +130,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
         try
         {
             var peerPubkey = context.GetPublicKey();
-            await requestStream.ForEachAsync(async tx => await _serviceProvider.ProcessTransactionAsync(tx, peerPubkey));
+            await requestStream.ForEachAsync(async tx => await _grpcRequestProcessor.ProcessTransactionAsync(tx, peerPubkey));
         }
         catch (Exception e)
         {
@@ -151,7 +151,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
         try
         {
             var peerPubkey = context.GetPublicKey();
-            await requestStream.ForEachAsync(async r => await _serviceProvider.ProcessLibAnnouncementAsync(r, peerPubkey));
+            await requestStream.ForEachAsync(async r => await _grpcRequestProcessor.ProcessLibAnnouncementAsync(r, peerPubkey));
         }
         catch (Exception e)
         {
@@ -172,17 +172,17 @@ public class GrpcServerService : PeerService.PeerServiceBase
     /// </summary>
     public override async Task<BlockReply> RequestBlock(BlockRequest request, ServerCallContext context)
     {
-        return await _serviceProvider.RequestBlockAsync(null, request, context.GetPeerInfo(), context.GetPublicKey());
+        return await _grpcRequestProcessor.GetBlockAsync(request, context.GetPeerInfo(), context.GetPublicKey());
     }
 
     public override async Task<BlockList> RequestBlocks(BlocksRequest request, ServerCallContext context)
     {
-        return await _serviceProvider.RequestBlocksAsync(null, request, context.GetPeerInfo());
+        return await _grpcRequestProcessor.GetBlocksAsync(request, context.GetPeerInfo());
     }
 
     public override async Task<NodeList> GetNodes(NodesRequest request, ServerCallContext context)
     {
-        return await _serviceProvider.GetNodesAsync(request, context.GetPeerInfo());
+        return await _grpcRequestProcessor.GetNodesAsync(request, context.GetPeerInfo());
     }
 
     public override Task<PongReply> Ping(PingRequest request, ServerCallContext context)
@@ -200,6 +200,6 @@ public class GrpcServerService : PeerService.PeerServiceBase
     /// </summary>
     public override async Task<VoidReply> Disconnect(DisconnectReason request, ServerCallContext context)
     {
-        return await _serviceProvider.DisconnectAsync(request, null, context.GetPeerInfo(), context.GetPublicKey());
+        return await _grpcRequestProcessor.DisconnectAsync(request, context.GetPeerInfo(), context.GetPublicKey());
     }
 }

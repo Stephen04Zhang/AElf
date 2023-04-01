@@ -15,27 +15,27 @@ using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
 
-public interface IServiceProvider
+public interface IGrpcRequestProcessor
 {
     Task ProcessBlockAsync(BlockWithTransactions block, string peerPubkey);
     Task ProcessAnnouncementAsync(BlockAnnouncement announcement, string peerPubkey);
     Task ProcessTransactionAsync(Transaction tx, string peerPubkey);
     Task ProcessLibAnnouncementAsync(LibAnnouncement announcement, string peerPubkey);
     Task<NodeList> GetNodesAsync(NodesRequest request, string peerInfo);
-    Task<BlockReply> RequestBlockAsync(string requestId, BlockRequest request, string peerInfo, string pubKey);
-    Task<BlockList> RequestBlocksAsync(string requestId, BlocksRequest request, string peerInfo);
-    Task<VoidReply> ConfirmHandshakeAsync(string requestId, string peerInfo, string pubKey);
-    Task<VoidReply> DisconnectAsync(DisconnectReason request, string requestId, string peerInfo, string pubKey);
+    Task<BlockReply> GetBlockAsync(BlockRequest request, string peerInfo, string pubKey, string requestId = null);
+    Task<BlockList> GetBlocksAsync(BlocksRequest request, string peerInf, string requestId = null);
+    Task<VoidReply> ConfirmHandshakeAsync(string peerInfo, string pubKey, string requestId = null);
+    Task<VoidReply> DisconnectAsync(DisconnectReason request, string peerInfo, string pubKey, string requestId = null);
 }
 
-public class ServiceProvider : IServiceProvider
+public class GrpcRequestProcessor : IGrpcRequestProcessor
 {
     private readonly IBlockchainService _blockchainService;
     private readonly IConnectionService _connectionService;
     private readonly ISyncStateService _syncStateService;
     private readonly INodeManager _nodeManager;
 
-    public ServiceProvider(IBlockchainService blockchainService, IConnectionService connectionService, ISyncStateService syncStateService, INodeManager nodeManager)
+    public GrpcRequestProcessor(IBlockchainService blockchainService, IConnectionService connectionService, ISyncStateService syncStateService, INodeManager nodeManager)
     {
         _blockchainService = blockchainService;
         _connectionService = connectionService;
@@ -44,7 +44,7 @@ public class ServiceProvider : IServiceProvider
     }
 
     public ILocalEventBus EventBus { get; set; }
-    public ILogger<ServiceProvider> Logger { get; set; }
+    public ILogger<GrpcRequestProcessor> Logger { get; set; }
 
     public Task ProcessBlockAsync(BlockWithTransactions block, string peerPubkey)
     {
@@ -121,7 +121,7 @@ public class ServiceProvider : IServiceProvider
     ///     of <see cref="BlockRequest.Hash" /> is not null, the request is by ID, otherwise it will be
     ///     by height.
     /// </summary>
-    public async Task<BlockReply> RequestBlockAsync(string requestId, BlockRequest request, string peerInfo, string pubKey)
+    public async Task<BlockReply> GetBlockAsync(BlockRequest request, string peerInfo, string pubKey, string requestId)
     {
         if (request == null || request.Hash == null || _syncStateService.SyncState != SyncState.Finished)
             return new BlockReply();
@@ -152,7 +152,7 @@ public class ServiceProvider : IServiceProvider
         return new BlockReply { Block = block };
     }
 
-    public async Task<BlockList> RequestBlocksAsync(string requestId, BlocksRequest request, string peerInfo)
+    public async Task<BlockList> GetBlocksAsync(BlocksRequest request, string peerInfo, string requestId)
     {
         if (request == null ||
             request.PreviousBlockHash == null ||
@@ -207,7 +207,7 @@ public class ServiceProvider : IServiceProvider
         return nodes;
     }
 
-    public async Task<VoidReply> ConfirmHandshakeAsync(string requestId, string peerInfo, string pubKey)
+    public async Task<VoidReply> ConfirmHandshakeAsync(string peerInfo, string pubKey, string requestId)
     {
         try
         {
@@ -223,7 +223,7 @@ public class ServiceProvider : IServiceProvider
         return new VoidReply();
     }
 
-    public async Task<VoidReply> DisconnectAsync(DisconnectReason request, string requestId, string peerInfo, string pubKey)
+    public async Task<VoidReply> DisconnectAsync(DisconnectReason request, string peerInfo, string pubKey, string requestId)
     {
         Logger.LogDebug("Peer {peerInfo} has sent a disconnect request. reason={reason} requestId={requestId}", peerInfo, request, requestId);
         try

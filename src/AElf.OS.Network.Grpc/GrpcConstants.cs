@@ -16,7 +16,7 @@ public static class GrpcConstants
 
     public const int GrpcArgKeepalivePermitWithoutCallsOpen = 1;
     public const int GrpcArgHttp2MaxPingsWithoutDataVal = 0;
-    public const int GrpcArgKeepaliveTimeoutMsVal = 2000;
+    public const int GrpcArgKeepaliveTimeoutMsVal = 60 * 1000;
     public const int GrpcArgKeepaliveTimeMsVal = 2 * 60 * 60 * 1000;
 
     public const string GrpcGzipConst = "gzip";
