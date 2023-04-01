@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -36,17 +35,15 @@ public class PeerDialer : IPeerDialer
     private readonly IAccountService _accountService;
     private readonly IHandshakeProvider _handshakeProvider;
     private readonly IStreamClientProvider _streamClientProvider;
-    private readonly IPeerPool _peerPool;
     private KeyCertificatePair _clientKeyCertificatePair;
     public ILocalEventBus EventBus { get; set; }
 
     public PeerDialer(IAccountService accountService,
-        IHandshakeProvider handshakeProvider, IStreamClientProvider streamClientProvider, IPeerPool peerPool)
+        IHandshakeProvider handshakeProvider, IStreamClientProvider streamClientProvider)
     {
         _accountService = accountService;
         _handshakeProvider = handshakeProvider;
         _streamClientProvider = streamClientProvider;
-        _peerPool = peerPool;
         EventBus = NullLocalEventBus.Instance;
 
         Logger = NullLogger<PeerDialer>.Instance;
@@ -161,7 +158,6 @@ public class PeerDialer : IPeerDialer
 
         if (client == null)
             return false;
-        await CheckStreamEndpointAvailableAsync(remoteEndpoint); // this will be called loop by stream client discovery 
         try
         {
             await PingNodeAsync(client, remoteEndpoint);
@@ -171,23 +167,6 @@ public class PeerDialer : IPeerDialer
         catch (Exception e)
         {
             Logger.LogWarning(e, $"Could not ping peer {remoteEndpoint}.");
-            return false;
-        }
-    }
-
-    private async Task<bool> CheckStreamEndpointAvailableAsync(DnsEndPoint remoteEndpoint)
-    {
-        var peer = _peerPool.FindPeerByEndpoint(remoteEndpoint);
-        if (peer == null || peer.IsInvalid) return false;
-        try
-        {
-            await peer.PingAsync();
-            Logger.LogDebug("stream ping ack to peer {remoteEndpoint}.", remoteEndpoint);
-            return true;
-        }
-        catch (Exception e)
-        {
-            Logger.LogWarning(e, "Could not ping stream peer {remoteEndpoint}.", remoteEndpoint);
             return false;
         }
     }
