@@ -179,16 +179,16 @@ public class GrpcServerService : PeerService.PeerServiceBase
 
     public override async Task<BlockList> RequestBlocks(BlocksRequest request, ServerCallContext context)
     {
-        return await _grpcRequestProcessor.GetBlocksAsync(request, context.GetPeerInfo());
-    }
-
-    public override async Task<NodeList> GetNodes(NodesRequest request, ServerCallContext context)
-    {
-        var blocks = await _grpcRequestProcessor.GetNodesAsync(request, context.GetPeerInfo());
+        var blocks = await _grpcRequestProcessor.GetBlocksAsync(request, context.GetPeerInfo());
         if (!NetworkOptions.CompressBlocksOnRequest) return blocks;
         var headers = new Metadata { new(GrpcConstants.GrpcRequestCompressKey, GrpcConstants.GrpcGzipConst) };
         await context.WriteResponseHeadersAsync(headers);
         return blocks;
+    }
+
+    public override async Task<NodeList> GetNodes(NodesRequest request, ServerCallContext context)
+    {
+        return await _grpcRequestProcessor.GetNodesAsync(request, context.GetPeerInfo());
     }
 
     public override Task<PongReply> Ping(PingRequest request, ServerCallContext context)
