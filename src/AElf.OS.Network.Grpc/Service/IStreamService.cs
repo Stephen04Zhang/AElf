@@ -56,27 +56,27 @@ public class StreamService : IStreamService, ISingletonDependency
         {
             if (!ValidReplyMetaContext(message, streamPeer)) return;
             await DoProcessAsync(message, streamPeer?.GetResponseStream(), new StreamMessageMetaStreamContext(message.Meta));
-            Logger.LogInformation("handle stream call success, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
+            Logger.LogInformation("handle stream call success, clientPubKey={clientPubKey} request={requestId} {streamType}-{messageType}", clientPubKey, message.RequestId, message.StreamType, message.MessageType);
         }
         catch (RpcException ex)
         {
             await HandleNetworkExceptionAsync(peer, streamPeer.HandleRpcException(ex, $"Could not broadcast to {this}: "));
-            Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
+            Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}-{messageType}", clientPubKey, message.RequestId, message.StreamType, message.MessageType);
         }
         catch (Exception ex)
         {
             await HandleNetworkExceptionAsync(peer, new NetworkException("Unknown exception during broadcast.", ex));
-            Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}", clientPubKey, message.RequestId, message.StreamType);
+            Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}-{messageType}", clientPubKey, message.RequestId, message.StreamType, message.MessageType);
         }
     }
 
     private async Task DoProcessAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IStreamContext streamContext)
     {
-        Logger.LogInformation("receive {requestId} {streamType}", request.RequestId, request.StreamType);
+        Logger.LogInformation("receive {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
         switch (request.StreamType)
         {
             case StreamType.Reply:
-                Logger.LogInformation("receive {RequestId} {streamType}", request.RequestId, request.StreamType);
+                Logger.LogInformation("receive {RequestId} {streamType}-{messageType}}", request.RequestId, request.StreamType, request.MessageType);
                 _streamTaskResourcePool.TrySetResult(request.RequestId, request);
                 return;
             case StreamType.Request:
@@ -84,17 +84,18 @@ public class StreamService : IStreamService, ISingletonDependency
                 return;
             case StreamType.Unknown:
             default:
-                Logger.LogWarning("unhandled stream request: {requestId} {type}", request.RequestId, request.StreamType);
+                Logger.LogWarning("unhandled stream request: {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
                 return;
         }
     }
+    
 
     private async Task ProcessRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IStreamContext streamContext)
     {
         try
         {
             var method = _streamMethods.FirstOrDefault(e => e.Method == request.MessageType);
-            if (method == null) Logger.LogWarning("unhandled stream request: {requestId} {type}", request.RequestId, request.StreamType);
+            if (method == null) Logger.LogWarning("unhandled stream request: {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
             var reply = method == null ? new VoidReply() : await method.InvokeAsync(request, streamContext, responseStream);
             var peer = _peerPool.FindPeerByPublicKey(streamContext.GetPubKey());
             var message = new StreamMessage
@@ -105,12 +106,12 @@ public class StreamService : IStreamService, ISingletonDependency
             if (peer != null)
                 message.Meta.Add(GrpcConstants.SessionIdMetadataKey, peer.Info.SessionId.ToHex());
             else
-                Logger.LogWarning("peer not found {requestId} {type}", request.RequestId, request.StreamType);
+                Logger.LogWarning("peer not found {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
             await responseStream.WriteAsync(message);
         }
         catch (Exception e)
         {
-            Logger.LogWarning(e, "request failed {requestId} {streamType}", request.RequestId, request.StreamType);
+            Logger.LogWarning(e, "request failed {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
             throw;
         }
     }

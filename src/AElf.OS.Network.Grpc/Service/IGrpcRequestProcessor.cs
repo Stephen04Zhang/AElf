@@ -165,7 +165,7 @@ public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
             return new BlockList();
 
         Logger.LogDebug(
-            "Peer {peerInfo} requested {count} blocks from {preHash}. requestId={requestId}", peerInfo, request.Count, request.PreviousBlockHash, requestId);
+            "Peer {peerInfo} requested {count} blocks from {preHash}. requestId={requestId}", peerInfo, request.Count, request.PreviousBlockHash.ToHex(), requestId);
 
         var blockList = new BlockList();
 
