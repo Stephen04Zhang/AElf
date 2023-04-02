@@ -76,7 +76,6 @@ public class StreamService : IStreamService, ISingletonDependency
         switch (request.StreamType)
         {
             case StreamType.Reply:
-                Logger.LogInformation("receive {RequestId} {streamType}-{messageType}}", request.RequestId, request.StreamType, request.MessageType);
                 _streamTaskResourcePool.TrySetResult(request.RequestId, request);
                 return;
             case StreamType.Request:
