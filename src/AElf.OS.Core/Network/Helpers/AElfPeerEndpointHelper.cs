@@ -78,12 +78,29 @@ public static class AElfPeerEndpointHelper
             return -1;
         }
 
-        if (!int.TryParse(values[values.Length - 1], out var port))
+        if (values.Length == 2)
         {
-            return -1;
+            if (!int.TryParse(values[values.Length - 1], out var port))
+            {
+                return -1;
+            }
+
+            return port;
         }
 
-        return port;
+        //ipv6
+        //could be [a:b:c]:d
+        if (values[0].StartsWith("[") && values[values.Length - 2].EndsWith("]"))
+        {
+            if (!int.TryParse(values[values.Length - 1], out var port))
+            {
+                return -1;
+            }
+
+            return port;
+        }
+
+        return -1;
     }
 
     private static int GetPort(string p)

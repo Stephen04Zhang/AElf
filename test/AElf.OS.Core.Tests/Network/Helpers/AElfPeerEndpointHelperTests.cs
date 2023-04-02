@@ -30,4 +30,23 @@ public class AElfPeerEndpointHelperTests : OSCoreNetworkServiceTestBase
         if (isValid)
             endpoint.Port.ShouldBe(expectedPort);
     }
+
+    [Theory]
+    [InlineData("aelf.bp1.cn:8907", 8907)]
+    [InlineData("aelf.bp1.cn", -1)]
+    [InlineData("127.0.0.1:13000", 13000)]
+    [InlineData("0.0.0.0:100", 100)]
+    [InlineData("0.0.0.0", -1)]
+    [InlineData("::1", -1)]
+    [InlineData("::", -1)]
+    [InlineData("[1fff:0:a88:85a3::ac1f]:8001", 8001)]
+    [InlineData("[1fff:0:a88:85a3::ac1f]:8907333", 8907333)]
+    [InlineData("", -1)]
+    [InlineData(" ", -1)]
+    [InlineData("aelf.bp1.cn:8907333", 8907333)]
+    [InlineData("aelf.bp1.cn:abcs", -1)]
+    public void GetEndpointPortTest(string endpointToParse, int expectedPort = -1)
+    {
+        AElfPeerEndpointHelper.GetEndpointPort(endpointToParse).ShouldBe(expectedPort);
+    }
 }
