@@ -160,7 +160,7 @@ public class StreamService : IStreamService, ISingletonDependency
 
         if (peer.InboundSessionId == null)
         {
-            Logger.LogWarning("Wrong inbound session id {peer}, {streamType}-{MessageType}", context.Peer, message.StreamType, message.MessageType);
+            Logger.LogWarning("Wrong inbound session id {peer}, {streamType}-{messageType}", context.Peer, message.StreamType, message.MessageType);
             return false;
         }
 
@@ -170,7 +170,7 @@ public class StreamService : IStreamService, ISingletonDependency
             return false;
         }
 
-        Logger.LogWarning("Unequal session id, ({InboundSessionId} {infoSession} vs {sessionId}) {streamType}-{MessageType} {pubkey}  {Peer}", peer.InboundSessionId.ToHex(), peer.Info.SessionId.ToHex(),
+        Logger.LogWarning("Unequal session id, ({inboundSessionId} {infoSession} vs {sessionId}) {streamType}-{messageType} {pubkey}  {peer}", peer.InboundSessionId.ToHex(), peer.Info.SessionId.ToHex(),
             sessionId.ToHex(), message.StreamType, message.MessageType, peer.Info.Pubkey, peer);
         return false;
     }
@@ -187,7 +187,7 @@ public class StreamService : IStreamService, ISingletonDependency
         var sessionIdHex = message.Meta[GrpcConstants.SessionIdMetadataKey];
         if (sessionIdHex == null)
         {
-            Logger.LogWarning("Wrong context session id {pubkey}, {MessageType}, {peer}", streamPeer.Info.Pubkey, message.MessageType, streamPeer);
+            Logger.LogWarning("Wrong context session id {pubkey}, {messageType}, {peer}", streamPeer.Info.Pubkey, message.MessageType, streamPeer);
             return false;
         }
 
@@ -204,7 +204,7 @@ public class StreamService : IStreamService, ISingletonDependency
             return false;
         }
 
-        Logger.LogWarning("Unequal session id, ({InboundSessionId} {infoSession} vs {sessionId}) {streamType}-{MessageType} {pubkey}  {Peer}", streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex(),
+        Logger.LogWarning("Unequal session id, ({inboundSessionId} {infoSession} vs {sessionId}) {streamType}-{messageType} {pubkey}  {peer}", streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex(),
             sessionIdHex, message.StreamType, message.MessageType, streamPeer.Info.Pubkey, streamPeer);
         return false;
     }
