@@ -10,6 +10,7 @@ using AElf.OS.Network.Extensions;
 using AElf.Types;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Local;
 
@@ -41,6 +42,8 @@ public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
         _connectionService = connectionService;
         _syncStateService = syncStateService;
         _nodeManager = nodeManager;
+        EventBus = NullLocalEventBus.Instance;
+        Logger = NullLogger<GrpcRequestProcessor>.Instance;
     }
 
     public ILocalEventBus EventBus { get; set; }

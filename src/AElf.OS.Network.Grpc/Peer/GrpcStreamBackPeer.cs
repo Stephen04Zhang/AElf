@@ -90,7 +90,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
     {
         try
         {
-            await _streamClient.BroadcastBlockAsync(blockWithTransactions, AddPeerMeta(null));
+            await _streamClient.BroadcastBlockAsync(blockWithTransactions, AddPeerMeta());
         }
         catch (RpcException e)
         {
@@ -114,7 +114,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
     {
         try
         {
-            await _streamClient.BroadcastAnnouncementBlockAsync(header, AddPeerMeta(null));
+            await _streamClient.BroadcastAnnouncementBlockAsync(header, AddPeerMeta());
         }
         catch (RpcException e)
         {
@@ -138,7 +138,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
     {
         try
         {
-            await _streamClient.BroadcastTransactionAsync(transaction, AddPeerMeta(null));
+            await _streamClient.BroadcastTransactionAsync(transaction, AddPeerMeta());
         }
         catch (RpcException e)
         {
@@ -162,7 +162,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
     {
         try
         {
-            await _streamClient.BroadcastLibAnnouncementAsync(libAnnouncement, AddPeerMeta(null));
+            await _streamClient.BroadcastLibAnnouncementAsync(libAnnouncement, AddPeerMeta());
         }
         catch (RpcException e)
         {
@@ -302,7 +302,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         }
     }
 
-    private Metadata AddPeerMeta(Metadata metadata)
+    private Metadata AddPeerMeta(Metadata metadata = null)
     {
         metadata ??= new Metadata();
         foreach (var kv in _peerMeta)

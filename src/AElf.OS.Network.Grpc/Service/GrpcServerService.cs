@@ -60,7 +60,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
 
     public override async Task RequestByStream(IAsyncStreamReader<StreamMessage> requestStream, IServerStreamWriter<StreamMessage> responseStream, ServerCallContext context)
     {
-        Logger.LogDebug($"Block stream started with {context.GetPeerInfo()} - {context.Peer}.");
+        Logger.LogDebug("RequestByStream started with {peerInfo} - {peer}.", context.GetPeerInfo(), context.Peer);
 
         try
         {
@@ -68,11 +68,11 @@ public class GrpcServerService : PeerService.PeerServiceBase
         }
         catch (Exception e)
         {
-            Logger.LogError(e, $"Block stream error - {context.GetPeerInfo()}: ");
+            Logger.LogError(e, "RequestByStream error - {peerInfo}: ", context.GetPeerInfo());
             throw;
         }
 
-        Logger.LogDebug($"Block stream finished with {context.GetPeerInfo()} - {context.Peer}.");
+        Logger.LogDebug("RequestByStream finished with {peerInfo} - {peer}.", context.GetPeerInfo(), context.Peer);
     }
 
     public override Task<VoidReply> ConfirmHandshake(ConfirmHandshakeRequest request,
