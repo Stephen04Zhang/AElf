@@ -87,7 +87,7 @@ public class StreamService : IStreamService, ISingletonDependency
                 return;
         }
     }
-    
+
 
     private async Task ProcessRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, IStreamContext streamContext)
     {
@@ -106,7 +106,10 @@ public class StreamService : IStreamService, ISingletonDependency
                 message.Meta.Add(GrpcConstants.SessionIdMetadataKey, peer.Info.SessionId.ToHex());
             else
                 Logger.LogWarning("peer not found {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
-            await responseStream.WriteAsync(message);
+            if (responseStream != null)
+                await responseStream.WriteAsync(message);
+            else
+                Logger.LogWarning("stream peer not found {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
         }
         catch (Exception e)
         {
