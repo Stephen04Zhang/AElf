@@ -40,18 +40,21 @@ public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDepende
 
     public async Task<StreamMessage> GetResultAsync(string requestId, int timeOut)
     {
-        AssertContains(requestId);
-        var promise = _promisePool[requestId].Item2;
-        var completed = await Task.WhenAny(promise.Task, Task.Delay(timeOut));
-        if (completed != promise.Task)
+        try
+        {
+            AssertContains(requestId);
+            var promise = _promisePool[requestId].Item2;
+            var completed = await Task.WhenAny(promise.Task, Task.Delay(timeOut));
+            if (completed != promise.Task)
+                throw new TimeoutException($"streaming call time out requestId {requestId}");
+
+            var message = await promise.Task;
+            return message;
+        }
+        finally
         {
             _promisePool.TryRemove(requestId, out _);
-            throw new TimeoutException($"streaming call time out requestId {requestId}");
         }
-
-        var message = await promise.Task;
-        _promisePool.TryRemove(requestId, out _);
-        return message;
     }
 
     private void AssertContains(string requestId)

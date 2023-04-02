@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using AElf.CSharp.Core.Extension;
+using AElf.Kernel;
 using AElf.OS.Network.Application;
 using AElf.OS.Network.Protocol.Types;
 using AElf.Types;
@@ -30,8 +32,9 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         if (!gracefulDisconnect) return;
         try
         {
-            await _streamClient.DisconnectAsync(new DisconnectReason
-                { Why = DisconnectReason.Types.Reason.Shutdown }, AddPeerMeta(new Metadata { { GrpcConstants.SessionIdMetadataKey, OutboundSessionId } }));
+            var request = new GrpcRequest { ErrorMessage = "Could not send disconnect." };
+            await RequestAsync(() => _streamClient.DisconnectAsync(new DisconnectReason
+                { Why = DisconnectReason.Types.Reason.Shutdown }, AddPeerMeta(new Metadata { { GrpcConstants.SessionIdMetadataKey, OutboundSessionId } })), request);
         }
         catch (Exception)
         {
@@ -48,138 +51,31 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             { GrpcConstants.TimeoutMetadataKey, UpdateHandshakeTimeout.ToString() },
             { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        try
-        {
-            await _streamClient.ConfirmHandshakeAsync(new ConfirmHandshakeRequest(), AddPeerMeta(data));
-        }
-        catch (InvalidOperationException)
-        {
-            await DisconnectAsync(true);
-            throw;
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, request.ErrorMessage);
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
-        }
-    }
-
-    public override NetworkException HandleRpcException(RpcException exception, string errorMessage)
-    {
-        var message = $"Failed request to {this}: {errorMessage}";
-        var type = NetworkExceptionType.Rpc;
-        if (exception.StatusCode ==
-            // there was an exception, not related to connectivity.
-            StatusCode.Cancelled)
-        {
-            message = $"Request was cancelled {this}: {errorMessage}";
-            type = NetworkExceptionType.Unrecoverable;
-        }
-        else if (exception.StatusCode == StatusCode.Unknown)
-        {
-            message = $"Exception in handler {this}: {errorMessage}";
-            type = NetworkExceptionType.HandlerException;
-        }
-
-        return new NetworkException(message, exception, type);
+        await RequestAsync(() => _streamClient.ConfirmHandshakeAsync(new ConfirmHandshakeRequest(), AddPeerMeta(data)), request);
     }
 
     public override async Task BroadcastBlockAsync(BlockWithTransactions blockWithTransactions)
     {
-        try
-        {
-            await _streamClient.BroadcastBlockAsync(blockWithTransactions, AddPeerMeta());
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, "BroadcastBlockAsync failed");
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
-        }
-        catch (Exception e)
-        {
-            if (e is TimeoutException or InvalidOperationException)
-            {
-                await DisconnectAsync(true);
-            }
-
-            throw;
-        }
+        var request = new GrpcRequest { ErrorMessage = "broadcast block failed." };
+        await RequestAsync(() => _streamClient.BroadcastBlockAsync(blockWithTransactions, AddPeerMeta()), request);
     }
 
     public override async Task SendAnnouncementAsync(BlockAnnouncement header)
     {
-        try
-        {
-            await _streamClient.BroadcastAnnouncementBlockAsync(header, AddPeerMeta());
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, "BroadcastBlockAsync failed");
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
-        }
-        catch (Exception e)
-        {
-            if (e is TimeoutException or InvalidOperationException)
-            {
-                await DisconnectAsync(true);
-            }
-
-            throw;
-        }
+        var request = new GrpcRequest { ErrorMessage = "broadcast block announcement failed." };
+        await RequestAsync(() => _streamClient.BroadcastAnnouncementBlockAsync(header, AddPeerMeta()), request);
     }
 
     public override async Task SendTransactionAsync(Transaction transaction)
     {
-        try
-        {
-            await _streamClient.BroadcastTransactionAsync(transaction, AddPeerMeta());
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, "BroadcastBlockAsync failed");
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
-        }
-        catch (Exception e)
-        {
-            if (e is TimeoutException or InvalidOperationException)
-            {
-                await DisconnectAsync(true);
-            }
-
-            throw;
-        }
+        var request = new GrpcRequest { ErrorMessage = "broadcast transaction failed." };
+        await RequestAsync(() => _streamClient.BroadcastTransactionAsync(transaction, AddPeerMeta()), request);
     }
 
     public override async Task SendLibAnnouncementAsync(LibAnnouncement libAnnouncement)
     {
-        try
-        {
-            await _streamClient.BroadcastLibAnnouncementAsync(libAnnouncement, AddPeerMeta());
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, "BroadcastBlockAsync failed");
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
-        }
-        catch (Exception e)
-        {
-            if (e is TimeoutException or InvalidOperationException)
-            {
-                await DisconnectAsync(true);
-            }
-
-            throw;
-        }
+        var request = new GrpcRequest { ErrorMessage = "broadcast lib announcement failed." };
+        await RequestAsync(() => _streamClient.BroadcastLibAnnouncementAsync(libAnnouncement, AddPeerMeta()), request);
     }
 
     public override async Task<List<BlockWithTransactions>> GetBlocksAsync(Hash firstHash, int count)
@@ -199,57 +95,19 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             { GrpcConstants.TimeoutMetadataKey, BlocksRequestTimeout.ToString() },
             { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        try
-        {
-            var list = await _streamClient.RequestBlocksAsync(blockRequest, AddPeerMeta(data));
-            return list == null ? new List<BlockWithTransactions>() : list.Blocks.ToList();
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, request.ErrorMessage);
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
-        }
-        catch (Exception e)
-        {
-            if (e is TimeoutException or InvalidOperationException)
-            {
-                await DisconnectAsync(true);
-            }
-
-            throw;
-        }
+        var list = await RequestAsync(() => _streamClient.RequestBlocksAsync(blockRequest, AddPeerMeta(data)), request);
+        return list == null ? new List<BlockWithTransactions>() : list.Blocks.ToList();
     }
 
     public override async Task<NodeList> GetNodesAsync(int count = NetworkConstants.DefaultDiscoveryMaxNodesToRequest)
     {
+        var request = new GrpcRequest { ErrorMessage = "Request nodes failed." };
         var data = new Metadata
         {
             { GrpcConstants.TimeoutMetadataKey, GetNodesTimeout.ToString() },
             { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-
-        try
-        {
-            return await _streamClient.GetNodesAsync(new NodesRequest { MaxCount = count }, AddPeerMeta(data));
-        }
-        catch (RpcException e)
-        {
-            var networkException = HandleRpcException(e, "Request nodes failed.");
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
-        }
-        catch (Exception e)
-        {
-            if (e is TimeoutException or InvalidOperationException)
-            {
-                await DisconnectAsync(true);
-            }
-
-            throw;
-        }
+        return await RequestAsync(() => _streamClient.GetNodesAsync(new NodesRequest { MaxCount = count }, AddPeerMeta(data)), request);
     }
 
     public override async Task CheckHealthAsync()
@@ -261,7 +119,7 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             { GrpcConstants.TimeoutMetadataKey, CheckHealthTimeout.ToString() },
             { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        await _streamClient.CheckHealthAsync(AddPeerMeta(data));
+        await RequestAsync(() => _streamClient.CheckHealthAsync(AddPeerMeta(data)), request);
     }
 
     public override async Task<BlockWithTransactions> GetBlockByHashAsync(Hash hash)
@@ -280,9 +138,15 @@ public class GrpcStreamBackPeer : GrpcPeerBase
             { GrpcConstants.TimeoutMetadataKey, BlockRequestTimeout.ToString() },
             { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
+        return await RequestAsync(() => _streamClient.RequestBlockAsync(blockRequest, AddPeerMeta(data)), request);
+    }
+
+    private async Task<TResp> RequestAsync<TResp>(Func<Task<TResp>> func, GrpcRequest request)
+    {
+        var requestStartTime = TimestampHelper.GetUtcNow();
         try
         {
-            return await _streamClient.RequestBlockAsync(blockRequest, AddPeerMeta(data));
+            return await func();
         }
         catch (RpcException e)
         {
@@ -293,10 +157,10 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         }
         catch (Exception e)
         {
+            if (e is TimeoutException)
+                RecordMetric(request, requestStartTime, (TimestampHelper.GetUtcNow() - requestStartTime).Milliseconds());
             if (e is TimeoutException or InvalidOperationException)
-            {
                 await DisconnectAsync(true);
-            }
 
             throw;
         }
@@ -317,5 +181,26 @@ public class GrpcStreamBackPeer : GrpcPeerBase
     public override Task<bool> TryRecoverAsync()
     {
         return Task.FromResult(true);
+    }
+
+
+    public override NetworkException HandleRpcException(RpcException exception, string errorMessage)
+    {
+        var message = $"Failed request to {this}: {errorMessage}";
+        var type = NetworkExceptionType.Rpc;
+        if (exception.StatusCode ==
+            // there was an exception, not related to connectivity.
+            StatusCode.Cancelled)
+        {
+            message = $"Request was cancelled {this}: {errorMessage}";
+            type = NetworkExceptionType.Unrecoverable;
+        }
+        else if (exception.StatusCode == StatusCode.Unknown)
+        {
+            message = $"Exception in handler {this}: {errorMessage}";
+            type = NetworkExceptionType.HandlerException;
+        }
+
+        return new NetworkException(message, exception, type);
     }
 }

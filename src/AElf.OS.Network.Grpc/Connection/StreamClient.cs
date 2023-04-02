@@ -1,4 +1,3 @@
-using System.Text;
 using System.Threading.Tasks;
 using AElf.OS.Network.Grpc.Helpers;
 using AElf.Types;
@@ -38,9 +37,10 @@ public class StreamClient
         return HandshakeReply.Parser.ParseFrom(reply.Message);
     }
 
-    public async Task CheckHealthAsync(Metadata header)
+    public async Task<VoidReply> CheckHealthAsync(Metadata header)
     {
         await RequestAsync(MessageType.HealthCheck, new HealthCheckRequest().ToByteString(), header, GetTimeOutFromHeader(header));
+        return new VoidReply();
     }
 
     public async Task<BlockWithTransactions> RequestBlockAsync(BlockRequest blockRequest, Metadata header)
@@ -59,19 +59,22 @@ public class StreamClient
         return blockList;
     }
 
-    public async Task DisconnectAsync(DisconnectReason disconnectReason, Metadata header)
+    public async Task<VoidReply> DisconnectAsync(DisconnectReason disconnectReason, Metadata header)
     {
         await RequestAsync(MessageType.Disconnect, disconnectReason.ToByteString(), header);
+        return new VoidReply();
     }
 
-    public async Task ConfirmHandshakeAsync(ConfirmHandshakeRequest confirmHandshakeRequest, Metadata header)
+    public async Task<VoidReply> ConfirmHandshakeAsync(ConfirmHandshakeRequest confirmHandshakeRequest, Metadata header)
     {
         await RequestAsync(MessageType.HandShake, confirmHandshakeRequest.ToByteString(), header, GetTimeOutFromHeader(header));
+        return new VoidReply();
     }
 
-    public async Task BroadcastBlockAsync(BlockWithTransactions blockWithTransactions, Metadata header)
+    public async Task<VoidReply> BroadcastBlockAsync(BlockWithTransactions blockWithTransactions, Metadata header)
     {
         await RequestAsync(MessageType.BlockBroadcast, blockWithTransactions.ToByteString(), header);
+        return new VoidReply();
     }
 
     public async Task<PongReply> PingAsync(Metadata header)
@@ -80,19 +83,22 @@ public class StreamClient
         return msg == null ? null : PongReply.Parser.ParseFrom(msg.Message);
     }
 
-    public async Task BroadcastAnnouncementBlockAsync(BlockAnnouncement header, Metadata meta)
+    public async Task<VoidReply> BroadcastAnnouncementBlockAsync(BlockAnnouncement header, Metadata meta)
     {
         await RequestAsync(MessageType.AnnouncementBroadcast, header.ToByteString(), meta);
+        return new VoidReply();
     }
 
-    public async Task BroadcastTransactionAsync(Transaction transaction, Metadata meta)
+    public async Task<VoidReply> BroadcastTransactionAsync(Transaction transaction, Metadata meta)
     {
         await RequestAsync(MessageType.TransactionBroadcast, transaction.ToByteString(), meta);
+        return new VoidReply();
     }
 
-    public async Task BroadcastLibAnnouncementAsync(LibAnnouncement libAnnouncement, Metadata header)
+    public async Task<VoidReply> BroadcastLibAnnouncementAsync(LibAnnouncement libAnnouncement, Metadata header)
     {
         await RequestAsync(MessageType.LibAnnouncementBroadcast, libAnnouncement.ToByteString(), header);
+        return new VoidReply();
     }
 
     private int GetTimeOutFromHeader(Metadata header)

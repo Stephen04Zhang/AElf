@@ -285,6 +285,21 @@ public abstract class GrpcPeerBase : IPeer
 
         job.SendCallback?.Invoke(null);
     }
+    protected void RecordMetric(GrpcRequest grpcRequest, Timestamp requestStartTime, long elapsedMilliseconds)
+    {
+        var metrics = _recentRequestsRoundtripTimes[grpcRequest.MetricName];
+
+        while (metrics.Count >= MaxMetricsPerMethod)
+            metrics.TryDequeue(out _);
+
+        metrics.Enqueue(new RequestMetric
+        {
+            Info = grpcRequest.MetricInfo,
+            RequestTime = requestStartTime,
+            MethodName = grpcRequest.MetricName,
+            RoundTripTime = elapsedMilliseconds
+        });
+    }
 
     public abstract Task BroadcastBlockAsync(BlockWithTransactions blockWithTransactions);
 

@@ -6,10 +6,8 @@ using System.Net;
 using System.Threading.Tasks;
 using AElf.Kernel;
 using AElf.OS.Network.Application;
-using AElf.OS.Network.Metrics;
 using AElf.OS.Network.Protocol.Types;
 using AElf.Types;
-using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 
 namespace AElf.OS.Network.Grpc;
@@ -178,7 +176,7 @@ public class GrpcPeer : GrpcPeerBase
         await RequestAsync(() => _client.ConfirmHandshakeAsync(new ConfirmHandshakeRequest(), data), request);
     }
 
-    protected async Task<TResp> RequestAsync<TResp>(Func<AsyncUnaryCall<TResp>> func, GrpcRequest requestParams)
+    private async Task<TResp> RequestAsync<TResp>(Func<AsyncUnaryCall<TResp>> func, GrpcRequest requestParams)
     {
         var metricsName = requestParams.MetricName;
         var timeRequest = !string.IsNullOrEmpty(metricsName);
@@ -213,23 +211,6 @@ public class GrpcPeer : GrpcPeerBase
             throw HandleRpcException(rpcException, requestParams.ErrorMessage);
         }
     }
-
-    private void RecordMetric(GrpcRequest grpcRequest, Timestamp requestStartTime, long elapsedMilliseconds)
-    {
-        var metrics = _recentRequestsRoundtripTimes[grpcRequest.MetricName];
-
-        while (metrics.Count >= MaxMetricsPerMethod)
-            metrics.TryDequeue(out _);
-
-        metrics.Enqueue(new RequestMetric
-        {
-            Info = grpcRequest.MetricInfo,
-            RequestTime = requestStartTime,
-            MethodName = grpcRequest.MetricName,
-            RoundTripTime = elapsedMilliseconds
-        });
-    }
-
 
     /// <summary>
     ///     This method handles the case where the peer is potentially down. If the Rpc call
