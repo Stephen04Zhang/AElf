@@ -113,8 +113,8 @@ public class StreamClient
         var requestId = CommonHelper.GenerateRequestId();
         var streamMessage = new StreamMessage { StreamType = StreamType.Request, MessageType = messageType, RequestId = requestId, Message = reply };
         AddAllHeaders(streamMessage, header);
+        await _streamTaskResourcePool.RegistryTaskPromiseAsync(requestId, messageType, new TaskCompletionSource<StreamMessage>());
         await ClientStreamWriter.WriteAsync(streamMessage);
-        _streamTaskResourcePool.RegistryTaskPromise(requestId, messageType, new TaskCompletionSource<StreamMessage>());
         return await _streamTaskResourcePool.GetResultAsync(requestId, timeout);
     }
 

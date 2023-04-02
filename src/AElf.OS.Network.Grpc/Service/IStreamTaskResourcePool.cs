@@ -7,7 +7,7 @@ namespace AElf.OS.Network.Grpc;
 
 public interface IStreamTaskResourcePool
 {
-    void RegistryTaskPromise(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise);
+    Task RegistryTaskPromiseAsync(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise);
     void TrySetResult(string requestId, StreamMessage reply);
     Task<StreamMessage> GetResultAsync(string requestId, int timeOut);
 }
@@ -21,9 +21,10 @@ public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDepende
         _promisePool = new ConcurrentDictionary<string, Tuple<MessageType, TaskCompletionSource<StreamMessage>>>();
     }
 
-    public void RegistryTaskPromise(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise)
+    public Task RegistryTaskPromiseAsync(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise)
     {
         _promisePool[requestId] = new Tuple<MessageType, TaskCompletionSource<StreamMessage>>(messageType, promise);
+        return Task.CompletedTask;
     }
 
     public void TrySetResult(string requestId, StreamMessage reply)
