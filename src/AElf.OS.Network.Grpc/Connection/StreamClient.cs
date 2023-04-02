@@ -129,11 +129,11 @@ public class StreamClient
         {
             if (e.IsBinary)
             {
-                streamMessage.Meta.Add(e.Key, e.ValueBytes.ToHex());
+                streamMessage.Meta[e.Key] = e.ValueBytes.ToHex();
                 continue;
             }
 
-            streamMessage.Meta.Add(e.Key, e.Value);
+            streamMessage.Meta[e.Key] = e.Value;
         }
     }
 }
