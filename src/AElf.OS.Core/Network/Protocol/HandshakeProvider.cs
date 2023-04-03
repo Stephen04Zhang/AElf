@@ -60,7 +60,7 @@ public class HandshakeProvider : IHandshakeProvider
         return handshake;
     }
 
-    private bool IsInvalidateProtocolVersion(int version)
+    private bool IsInvalidProtocolVersion(int version)
     {
         return version != KernelConstants.ProtocolVersion && version != KernelConstants.PreProtocolVersion;
     }
@@ -79,7 +79,7 @@ public class HandshakeProvider : IHandshakeProvider
             return HandshakeValidationResult.InvalidChainId;
         }
 
-        if (IsInvalidateProtocolVersion(handshake.HandshakeData.Version))
+        if (IsInvalidProtocolVersion(handshake.HandshakeData.Version))
         {
             Logger.LogDebug($"Version is incorrect: {handshake.HandshakeData.Version}.");
             return HandshakeValidationResult.InvalidVersion;

@@ -91,7 +91,8 @@ public class PeerDialer : IPeerDialer
         if (CanDoHandshakeByStream(handshake, handshakeReply.Handshake))
         {
             var streamPeer = new GrpcStreamPeer(client, remoteEndpoint, connectionInfo);
-            await CallDoHandshakeByStreamAsync(client, remoteEndpoint, streamPeer);
+            if (!await CallDoHandshakeByStreamAsync(client, remoteEndpoint, streamPeer))
+                return null;
             peer = streamPeer;
         }
         else
@@ -103,9 +104,7 @@ public class PeerDialer : IPeerDialer
 
         Logger.LogDebug("peer sessionId {InboundSessionId} {sessionId}", peer.InboundSessionId.ToHex(), connectionInfo.SessionId.ToHex());
         peer.UpdateLastReceivedHandshake(handshakeReply.Handshake);
-
         peer.UpdateLastSentHandshake(handshake);
-
         return peer;
     }
 
@@ -235,7 +234,7 @@ public class PeerDialer : IPeerDialer
         return handshake.HandshakeData.ListeningPort == KernelConstants.ClosedPort && handshakeReply.HandshakeData.Version == KernelConstants.ProtocolVersion;
     }
 
-    private async Task CallDoHandshakeByStreamAsync(GrpcClient client, DnsEndPoint remoteEndPoint, GrpcStreamPeer peer)
+    private async Task<bool> CallDoHandshakeByStreamAsync(GrpcClient client, DnsEndPoint remoteEndpoint, GrpcStreamPeer peer)
     {
         try
         {
@@ -254,9 +253,17 @@ public class PeerDialer : IPeerDialer
             }, tokenSource.Token), tokenSource);
             var handshake = await _handshakeProvider.GetHandshakeAsync();
             var handShakeReply = await streamClient.HandShakeAsync(new HandshakeRequest { Handshake = handshake }, metadata);
+            if (!await ProcessHandshakeReplyAsync(handShakeReply, remoteEndpoint))
+            {
+                await peer.DisconnectAsync(true);
+                await client.Channel.ShutdownAsync();
+                return false;
+            }
+
             peer.InboundSessionId = handshake.SessionId.ToByteArray();
             peer.Info.SessionId = handShakeReply.Handshake.SessionId.ToByteArray();
-            Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", remoteEndPoint.ToString(), peer.InboundSessionId.ToHex(), peer.Info.SessionId.ToHex());
+            Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", remoteEndpoint.ToString(), peer.InboundSessionId.ToHex(), peer.Info.SessionId.ToHex());
+            return true;
         }
         catch (Exception)
         {
