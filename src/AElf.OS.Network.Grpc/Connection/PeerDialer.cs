@@ -257,7 +257,6 @@ public class PeerDialer : IPeerDialer
             if (!await ProcessHandshakeReplyAsync(handShakeReply, remoteEndpoint))
             {
                 await peer.DisconnectAsync(true);
-                await client.Channel.ShutdownAsync();
                 return false;
             }
 
