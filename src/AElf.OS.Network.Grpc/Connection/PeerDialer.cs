@@ -242,7 +242,8 @@ public class PeerDialer : IPeerDialer
             {
                 { GrpcConstants.RetryCountMetadataKey, "0" },
             };
-            var call = client.Client.RequestByStream(new CallOptions().WithHeaders(metadata));
+            var call = client.Client.RequestByStream(new CallOptions()
+                .WithHeaders(metadata).WithDeadline(DateTime.MaxValue));
             var streamClient = _streamClientProvider.GetStreamClient(call.RequestStream);
             var tokenSource = new CancellationTokenSource();
 
