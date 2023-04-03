@@ -266,8 +266,9 @@ public class PeerDialer : IPeerDialer
             Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", remoteEndpoint.ToString(), peer.InboundSessionId.ToHex(), peer.Info.SessionId.ToHex());
             return true;
         }
-        catch (Exception)
-        {
+        catch (Exception e)
+        { 
+            Logger.LogError(e, "stream handle shake failed {remoteEndpoint}", remoteEndpoint);
             await client.Channel.ShutdownAsync();
             throw;
         }
