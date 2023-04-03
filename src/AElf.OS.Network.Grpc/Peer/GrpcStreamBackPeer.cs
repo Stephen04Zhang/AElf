@@ -143,10 +143,14 @@ public class GrpcStreamBackPeer : GrpcPeerBase
 
     private async Task<TResp> RequestAsync<TResp>(Func<Task<TResp>> func, GrpcRequest request)
     {
+        var recordRequestTime = !string.IsNullOrEmpty(request.MetricName);
         var requestStartTime = TimestampHelper.GetUtcNow();
         try
         {
-            return await func();
+            var resp = await func();
+            if (recordRequestTime)
+                RecordMetric(request, requestStartTime, (TimestampHelper.GetUtcNow() - requestStartTime).Milliseconds());
+            return resp;
         }
         catch (RpcException e)
         {
@@ -157,11 +161,8 @@ public class GrpcStreamBackPeer : GrpcPeerBase
         }
         catch (Exception e)
         {
-            if (e is TimeoutException)
-                RecordMetric(request, requestStartTime, (TimestampHelper.GetUtcNow() - requestStartTime).Milliseconds());
             if (e is TimeoutException or InvalidOperationException)
                 await DisconnectAsync(true);
-
             throw;
         }
     }
