@@ -8,7 +8,8 @@ public interface IStreamContext
 {
     string GetPeerInfo();
     string GetPubKey();
-    byte[] GetSessionId();
+    string GetSessionId();
+    void SetPeerInfo(string peerInfo);
 }
 
 public class ServiceStreamContext : IStreamContext
@@ -30,9 +31,14 @@ public class ServiceStreamContext : IStreamContext
         return Context.GetPublicKey();
     }
 
-    public byte[] GetSessionId()
+    public string GetSessionId()
     {
-        return Context.GetSessionId();
+        return Context.GetSessionId()?.ToHex();
+    }
+
+    public void SetPeerInfo(string peerInfo)
+    {
+        Context.RequestHeaders.Add(new Metadata.Entry(GrpcConstants.PeerInfoMetadataKey, peerInfo));
     }
 }
 
@@ -55,9 +61,13 @@ public class StreamMessageMetaStreamContext : IStreamContext
         return _meta[GrpcConstants.PubkeyMetadataKey];
     }
 
-    public byte[] GetSessionId()
+    public string GetSessionId()
     {
-        var val = _meta[GrpcConstants.SessionIdMetadataKey];
-        return val == null ? null : Encoding.ASCII.GetBytes(val);
+        return _meta[GrpcConstants.SessionIdMetadataKey];
+    }
+
+    public void SetPeerInfo(string peerInfo)
+    {
+        _meta[GrpcConstants.SessionIdMetadataKey] = peerInfo;
     }
 }

@@ -27,7 +27,6 @@ public class GrpcNetworkModule : AElfModule
 
     private void ConfigureStreamMethods(ServiceConfigurationContext context)
     {
-        context.Services.AddSingleton<IStreamMethod, HandShakeMethod>();
         context.Services.AddSingleton<IStreamMethod, GetNodesMethod>();
         context.Services.AddSingleton<IStreamMethod, HealthCheckMethod>();
         context.Services.AddSingleton<IStreamMethod, PingMethod>();

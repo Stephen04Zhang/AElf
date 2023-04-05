@@ -1,7 +1,9 @@
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using AElf.OS.Network.Grpc.Helpers;
 using AElf.Types;
+using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
@@ -41,15 +43,8 @@ public class GrpcServerService : PeerService.PeerServiceBase
         try
         {
             Logger.LogDebug($"Peer {context.Peer} has requested a handshake.");
-
-            if (context.AuthContext?.Properties != null)
-                foreach (var authProperty in context.AuthContext.Properties)
-                    Logger.LogDebug($"Auth property: {authProperty.Name} -> {authProperty.Value}");
-
-            if (!GrpcEndPointHelper.ParseDnsEndPoint(context.Peer, out var peerEndpoint))
-                return new HandshakeReply { Error = HandshakeError.InvalidConnection };
-
-            return await _connectionService.DoHandshakeAsync(peerEndpoint, request.Handshake);
+            var authReply = AuthHandshake(request, context);
+            return authReply.Item1 ?? await _connectionService.DoHandshakeAsync(authReply.Item2, request.Handshake);
         }
         catch (Exception e)
         {
@@ -58,13 +53,43 @@ public class GrpcServerService : PeerService.PeerServiceBase
         }
     }
 
+    private Tuple<HandshakeReply, DnsEndPoint> AuthHandshake(HandshakeRequest request, ServerCallContext context)
+    {
+        if (context.AuthContext?.Properties != null)
+            foreach (var authProperty in context.AuthContext.Properties)
+                Logger.LogDebug($"Auth property: {authProperty.Name} -> {authProperty.Value}");
+
+        return !GrpcEndPointHelper.ParseDnsEndPoint(context.Peer, out var peerEndpoint)
+            ? new Tuple<HandshakeReply, DnsEndPoint>(new HandshakeReply { Error = HandshakeError.InvalidConnection }, peerEndpoint)
+            : new Tuple<HandshakeReply, DnsEndPoint>(null, peerEndpoint);
+    }
+
     public override async Task RequestByStream(IAsyncStreamReader<StreamMessage> requestStream, IServerStreamWriter<StreamMessage> responseStream, ServerCallContext context)
     {
         Logger.LogDebug("RequestByStream started with {peerInfo} - {peer}.", context.GetPeerInfo(), context.Peer);
-
         try
         {
-            await requestStream.ForEachAsync(async req => await _streamService.ProcessStreamRequestAsync(req, responseStream, context));
+            await requestStream.ForEachAsync(async req =>
+            {
+                Logger.LogDebug("receive request={requestId} {streamType}-{messageType}", req.RequestId, req.StreamType, req.MessageType);
+                if (req.MessageType == MessageType.HandShake)
+                {
+                    var realRequest = HandshakeRequest.Parser.ParseFrom(req.Message);
+                    var authReply = AuthHandshake(realRequest, context);
+                    var handshakeReply = authReply.Item1 ?? await _connectionService.DoHandshakeByStreamAsync(authReply.Item2, responseStream, realRequest.Handshake);
+                    Logger.LogDebug("request invoke success {reply}", handshakeReply.Handshake);
+                    await responseStream.WriteAsync(new StreamMessage
+                    {
+                        // other stream message will come after handshake, so this write will not called concurrently with others
+                        StreamType = StreamType.Reply, MessageType = req.MessageType,
+                        RequestId = req.RequestId, Message = handshakeReply.ToByteString()
+                    });
+                }
+                else
+                {
+                    await _streamService.ProcessStreamRequestAsync(req, context);
+                }
+            });
         }
         catch (Exception e)
         {
@@ -84,10 +109,9 @@ public class GrpcServerService : PeerService.PeerServiceBase
     public override async Task<VoidReply> BlockBroadcastStream(
         IAsyncStreamReader<BlockWithTransactions> requestStream, ServerCallContext context)
     {
-        Logger.LogDebug($"Block stream started with {context.GetPeerInfo()} - {context.Peer}.");
-
         try
         {
+            Logger.LogDebug($"Block stream started with {context.GetPeerInfo()} - {context.Peer}.");
             var peerPubkey = context.GetPublicKey();
             await requestStream.ForEachAsync(async block => await _grpcRequestProcessor.ProcessBlockAsync(block, peerPubkey));
         }

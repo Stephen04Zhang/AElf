@@ -9,7 +9,7 @@ public interface IStreamTaskResourcePool
 {
     Task RegistryTaskPromiseAsync(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise);
     void TrySetResult(string requestId, StreamMessage reply);
-    Task<StreamMessage> GetResultAsync(string requestId, int timeOut);
+    Task<StreamMessage> GetResultAsync(TaskCompletionSource<StreamMessage> promise, string requestId, int timeOut);
 }
 
 public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDependency
@@ -39,12 +39,10 @@ public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDepende
         promise.Item2.TrySetResult(reply);
     }
 
-    public async Task<StreamMessage> GetResultAsync(string requestId, int timeOut)
+    public async Task<StreamMessage> GetResultAsync(TaskCompletionSource<StreamMessage> promise, string requestId, int timeOut)
     {
         try
         {
-            AssertContains(requestId);
-            var promise = _promisePool[requestId].Item2;
             var completed = await Task.WhenAny(promise.Task, Task.Delay(timeOut));
             if (completed != promise.Task)
                 throw new TimeoutException($"streaming call time out requestId {requestId}");

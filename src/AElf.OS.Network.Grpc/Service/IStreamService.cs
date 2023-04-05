@@ -15,7 +15,7 @@ namespace AElf.OS.Network.Grpc;
 public interface IStreamService
 {
     Task ProcessStreamReplyAsync(ByteString reply, string clientPubKey);
-    Task ProcessStreamRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, ServerCallContext context);
+    Task ProcessStreamRequestAsync(StreamMessage request, ServerCallContext context);
 }
 
 public class StreamService : IStreamService, ISingletonDependency
@@ -39,10 +39,11 @@ public class StreamService : IStreamService, ISingletonDependency
         _streamMethods = streamMethods;
     }
 
-    public async Task ProcessStreamRequestAsync(StreamMessage request, IAsyncStreamWriter<StreamMessage> responseStream, ServerCallContext context)
+    public async Task ProcessStreamRequestAsync(StreamMessage request, ServerCallContext context)
     {
-        if (!ValidRequestContext(request, context)) return;
-        await DoProcessAsync(request, new StreamRequestWriter(responseStream), new ServiceStreamContext(context));
+        var peer = _peerPool.FindPeerByPublicKey(context.GetPublicKey());
+        var streamPeer = peer as GrpcStreamPeer;
+        await DoProcessAsync(new StreamMessageMetaStreamContext(request.Meta), request, streamPeer);
     }
 
     public async Task ProcessStreamReplyAsync(ByteString reply, string clientPubKey)
@@ -54,8 +55,7 @@ public class StreamService : IStreamService, ISingletonDependency
         var streamPeer = peer as GrpcStreamPeer;
         try
         {
-            if (!ValidReplyMetaContext(message, streamPeer)) return;
-            await DoProcessAsync(message, streamPeer, new StreamMessageMetaStreamContext(message.Meta));
+            await DoProcessAsync(new StreamMessageMetaStreamContext(message.Meta), message, streamPeer);
             Logger.LogInformation("handle stream call success, clientPubKey={clientPubKey} request={requestId} {streamType}-{messageType}", clientPubKey, message.RequestId, message.StreamType, message.MessageType);
         }
         catch (RpcException ex)
@@ -70,22 +70,17 @@ public class StreamService : IStreamService, ISingletonDependency
         }
     }
 
-    private async Task DoProcessAsync(StreamMessage request, IStreamWriter responseWriter, IStreamContext streamContext)
+    private async Task DoProcessAsync(IStreamContext streamContext, StreamMessage request, GrpcStreamPeer responsePeer)
     {
         Logger.LogInformation("receive {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
+        if (!ValidContext(request, streamContext, responsePeer)) return;
         switch (request.StreamType)
         {
             case StreamType.Reply:
                 _streamTaskResourcePool.TrySetResult(request.RequestId, request);
                 return;
             case StreamType.Request:
-                if (responseWriter == null)
-                {
-                    Logger.LogWarning("stream peer not found {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
-                    return;
-                }
-
-                await ProcessRequestAsync(request, responseWriter, streamContext);
+                await ProcessRequestAsync(request, responsePeer, streamContext);
                 return;
             case StreamType.Unknown:
             default:
@@ -95,24 +90,20 @@ public class StreamService : IStreamService, ISingletonDependency
     }
 
 
-    private async Task ProcessRequestAsync(StreamMessage request, IStreamWriter responseWriter, IStreamContext streamContext)
+    private async Task ProcessRequestAsync(StreamMessage request, GrpcStreamPeer responsePeer, IStreamContext streamContext)
     {
         try
         {
             var method = _streamMethods.FirstOrDefault(e => e.Method == request.MessageType);
             if (method == null) Logger.LogWarning("unhandled stream request: {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
-            var reply = method == null ? new VoidReply() : await method.InvokeAsync(request, streamContext, responseWriter.GetResponseStream());
-            var peer = _peerPool.FindPeerByPublicKey(streamContext.GetPubKey());
+            var reply = method == null ? new VoidReply() : await method.InvokeAsync(request, streamContext);
             var message = new StreamMessage
             {
                 StreamType = StreamType.Reply, MessageType = request.MessageType,
                 RequestId = request.RequestId, Message = reply == null ? new VoidReply().ToByteString() : reply.ToByteString()
             };
-            if (peer != null)
-                message.Meta.Add(GrpcConstants.SessionIdMetadataKey, peer.Info.SessionId.ToHex());
-            else
-                Logger.LogWarning("peer not found {requestId} {streamType}-{messageType}", request.RequestId, request.StreamType, request.MessageType);
-            await responseWriter.WriteAsync(message);
+            message.Meta.Add(GrpcConstants.SessionIdMetadataKey, responsePeer.Info.SessionId.ToHex());
+            await responsePeer.WriteAsync(message);
         }
         catch (Exception e)
         {
@@ -144,29 +135,27 @@ public class StreamService : IStreamService, ISingletonDependency
         if (!success) await _connectionService.TrySchedulePeerReconnectionAsync(peer);
     }
 
-    private bool ValidRequestContext(StreamMessage message, ServerCallContext context)
+    private bool ValidContext(StreamMessage message, IStreamContext context, GrpcStreamPeer peer)
     {
         if (!IsNeedAuth(message)) return true;
-        var pubKey = context.GetPublicKey();
-        var peer = _peerPool.FindPeerByPublicKey(pubKey);
         if (peer == null)
         {
-            Logger.LogWarning("Could not find peer {requestId} {pubkey} {streamType}-{messageType}", message.RequestId, pubKey, message.StreamType, message.MessageType);
+            Logger.LogWarning("Could not find peer {pubKey}", context.GetPubKey());
             return false;
         }
 
         // check that the peers session is equal to one announced in the headers
         var sessionId = context.GetSessionId();
 
-        if (peer.InboundSessionId.BytesEqual(sessionId))
+        if (peer.InboundSessionId.ToHex().Equals(sessionId))
         {
-            context.RequestHeaders.Add(new Metadata.Entry(GrpcConstants.PeerInfoMetadataKey, $"{peer}"));
+            context.SetPeerInfo(peer.ToString());
             return true;
         }
 
         if (peer.InboundSessionId == null)
         {
-            Logger.LogWarning("Wrong inbound session id {peer}, {streamType}-{messageType}", context.Peer, message.StreamType, message.MessageType);
+            Logger.LogWarning("Wrong inbound session id {peer}, {streamType}-{messageType}", context.GetPeerInfo(), message.StreamType, message.MessageType);
             return false;
         }
 
@@ -177,41 +166,7 @@ public class StreamService : IStreamService, ISingletonDependency
         }
 
         Logger.LogWarning("Unequal session id, ({inboundSessionId} {infoSession} vs {sessionId}) {streamType}-{messageType} {pubkey}  {peer}", peer.InboundSessionId.ToHex(), peer.Info.SessionId.ToHex(),
-            sessionId.ToHex(), message.StreamType, message.MessageType, peer.Info.Pubkey, peer);
-        return false;
-    }
-
-    private bool ValidReplyMetaContext(StreamMessage message, GrpcStreamPeer streamPeer)
-    {
-        if (!IsNeedAuth(message)) return true;
-        if (streamPeer == null)
-        {
-            Logger.LogWarning("Could not find peer {requestId} {streamType}-{messageType}", message.RequestId, message.StreamType, message.MessageType);
-            return false;
-        }
-
-        var sessionIdHex = message.Meta[GrpcConstants.SessionIdMetadataKey];
-        if (sessionIdHex == null)
-        {
-            Logger.LogWarning("Wrong context session id {pubkey}, {messageType}, {peer}", streamPeer.Info.Pubkey, message.MessageType, streamPeer);
-            return false;
-        }
-
-        // check that the peers session is equal to one announced in the headers
-        if (streamPeer.InboundSessionId.ToHex().Equals(sessionIdHex))
-        {
-            message.Meta[GrpcConstants.PeerInfoMetadataKey] = streamPeer.ToString();
-            return true;
-        }
-
-        if (streamPeer.InboundSessionId == null)
-        {
-            Logger.LogWarning("Wrong inbound session id {peer}, {requestId}", streamPeer, message.RequestId);
-            return false;
-        }
-
-        Logger.LogWarning("Unequal session id, ({inboundSessionId} {infoSession} vs {sessionId}) {streamType}-{messageType} {pubkey}  {peer}", streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex(),
-            sessionIdHex, message.StreamType, message.MessageType, streamPeer.Info.Pubkey, streamPeer);
+            sessionId, message.StreamType, message.MessageType, peer.Info.Pubkey, peer);
         return false;
     }
 
