@@ -67,7 +67,7 @@ public class GrpcStreamPeer : GrpcPeer
             { GrpcConstants.RetryCountMetadataKey, "0" },
         };
         var grpcRequest = new GrpcRequest { ErrorMessage = "handshake failed." };
-        var reply = await RequestAsync(() => StreamRequestAsync(MessageType.HandShake, request, AddPeerMeta(metadata)), grpcRequest);
+        var reply = await RequestAsync(() => StreamRequestAsync(MessageType.HandShake, request, metadata), grpcRequest);
         return HandshakeReply.Parser.ParseFrom(reply.Message);
     }
 
@@ -78,33 +78,32 @@ public class GrpcStreamPeer : GrpcPeer
         var data = new Metadata
         {
             { GrpcConstants.TimeoutMetadataKey, UpdateHandshakeTimeout.ToString() },
-            { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        await RequestAsync(() => StreamRequestAsync(MessageType.ConfirmHandShake, new ConfirmHandshakeRequest(), AddPeerMeta(data)), request);
+        await RequestAsync(() => StreamRequestAsync(MessageType.ConfirmHandShake, new ConfirmHandshakeRequest(), data), request);
     }
 
     public override async Task BroadcastBlockAsync(BlockWithTransactions blockWithTransactions)
     {
         var request = new GrpcRequest { ErrorMessage = "broadcast block failed." };
-        await RequestAsync(() => StreamRequestAsync(MessageType.BlockBroadcast, blockWithTransactions, AddPeerMeta()), request);
+        await RequestAsync(() => StreamRequestAsync(MessageType.BlockBroadcast, blockWithTransactions), request);
     }
 
     public override async Task SendAnnouncementAsync(BlockAnnouncement header)
     {
         var request = new GrpcRequest { ErrorMessage = "broadcast block announcement failed." };
-        await RequestAsync(() => StreamRequestAsync(MessageType.AnnouncementBroadcast, header, AddPeerMeta()), request);
+        await RequestAsync(() => StreamRequestAsync(MessageType.AnnouncementBroadcast, header), request);
     }
 
     public override async Task SendTransactionAsync(Transaction transaction)
     {
         var request = new GrpcRequest { ErrorMessage = "broadcast transaction failed." };
-        await RequestAsync(() => StreamRequestAsync(MessageType.TransactionBroadcast, transaction, AddPeerMeta()), request);
+        await RequestAsync(() => StreamRequestAsync(MessageType.TransactionBroadcast, transaction), request);
     }
 
     public override async Task SendLibAnnouncementAsync(LibAnnouncement libAnnouncement)
     {
         var request = new GrpcRequest { ErrorMessage = "broadcast lib announcement failed." };
-        await RequestAsync(() => StreamRequestAsync(MessageType.LibAnnouncementBroadcast, libAnnouncement, AddPeerMeta()), request);
+        await RequestAsync(() => StreamRequestAsync(MessageType.LibAnnouncementBroadcast, libAnnouncement), request);
     }
 
     public override async Task<List<BlockWithTransactions>> GetBlocksAsync(Hash firstHash, int count)
@@ -122,9 +121,8 @@ public class GrpcStreamPeer : GrpcPeer
         var data = new Metadata
         {
             { GrpcConstants.TimeoutMetadataKey, BlocksRequestTimeout.ToString() },
-            { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        var listMessage = await RequestAsync(() => StreamRequestAsync(MessageType.RequestBlocks, blockRequest, AddPeerMeta(data)), request);
+        var listMessage = await RequestAsync(() => StreamRequestAsync(MessageType.RequestBlocks, blockRequest, data), request);
         return BlockList.Parser.ParseFrom(listMessage.Message).Blocks.ToList();
     }
 
@@ -142,9 +140,8 @@ public class GrpcStreamPeer : GrpcPeer
         var data = new Metadata
         {
             { GrpcConstants.TimeoutMetadataKey, BlockRequestTimeout.ToString() },
-            { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        var blockMessage = await RequestAsync(() => StreamRequestAsync(MessageType.RequestBlock, blockRequest, AddPeerMeta(data)), request);
+        var blockMessage = await RequestAsync(() => StreamRequestAsync(MessageType.RequestBlock, blockRequest, data), request);
         return BlockWithTransactions.Parser.ParseFrom(blockMessage.Message);
     }
 
@@ -154,9 +151,8 @@ public class GrpcStreamPeer : GrpcPeer
         var data = new Metadata
         {
             { GrpcConstants.TimeoutMetadataKey, GetNodesTimeout.ToString() },
-            { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        var listMessage = await RequestAsync(() => StreamRequestAsync(MessageType.GetNodes, new NodesRequest { MaxCount = count }, AddPeerMeta(data)), request);
+        var listMessage = await RequestAsync(() => StreamRequestAsync(MessageType.GetNodes, new NodesRequest { MaxCount = count }, data), request);
         return NodeList.Parser.ParseFrom(listMessage.Message);
     }
 
@@ -168,14 +164,8 @@ public class GrpcStreamPeer : GrpcPeer
         var data = new Metadata
         {
             { GrpcConstants.TimeoutMetadataKey, CheckHealthTimeout.ToString() },
-            { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
         };
-        await RequestAsync(() => StreamRequestAsync(MessageType.HealthCheck, new HealthCheckRequest(), AddPeerMeta(data)), request);
-    }
-
-    public IAsyncStreamWriter<StreamMessage> GetResponseStream()
-    {
-        return _duplexStreamingCall?.RequestStream;
+        await RequestAsync(() => StreamRequestAsync(MessageType.HealthCheck, new HealthCheckRequest(), data), request);
     }
 
     public async Task WriteAsync(StreamMessage message)
@@ -188,8 +178,6 @@ public class GrpcStreamPeer : GrpcPeer
             }
         });
     }
-
-    public WriteOptions WriteOptions { get; set; }
 
     private async Task WriteStreamJobAsync(StreamJob job)
     {
@@ -208,18 +196,6 @@ public class GrpcStreamPeer : GrpcPeer
         }
 
         job.SendCallback?.Invoke(null);
-    }
-
-    protected Metadata AddPeerMeta(Metadata metadata = null)
-    {
-        metadata ??= new Metadata();
-        foreach (var kv in _peerMeta)
-        {
-            metadata.Add(kv.Key, kv.Value);
-        }
-
-        metadata.Add(GrpcConstants.SessionIdMetadataKey, Info.SessionId);
-        return metadata;
     }
 
     protected async Task<TResp> RequestAsync<TResp>(Func<Task<TResp>> func, GrpcRequest request)
@@ -248,7 +224,7 @@ public class GrpcStreamPeer : GrpcPeer
         }
     }
 
-    protected async Task<StreamMessage> StreamRequestAsync(MessageType messageType, IMessage message, Metadata header)
+    protected async Task<StreamMessage> StreamRequestAsync(MessageType messageType, IMessage message, Metadata header = null)
     {
         var requestId = CommonHelper.GenerateRequestId();
         var streamMessage = new StreamMessage { StreamType = StreamType.Request, MessageType = messageType, RequestId = requestId, Message = message.ToByteString() };
@@ -265,11 +241,16 @@ public class GrpcStreamPeer : GrpcPeer
         return await _streamTaskResourcePool.GetResultAsync(promise, requestId, GetTimeOutFromHeader(header));
     }
 
-    private void AddAllHeaders(StreamMessage streamMessage, Metadata header)
+    private void AddAllHeaders(StreamMessage streamMessage, Metadata metadata = null)
     {
-        if (header == null) return;
+        foreach (var kv in _peerMeta)
+        {
+            streamMessage.Meta[kv.Key] = kv.Value;
+        }
 
-        foreach (var e in header)
+        streamMessage.Meta[GrpcConstants.SessionIdMetadataKey] = OutboundSessionId.ToHex();
+        if (metadata == null) return;
+        foreach (var e in metadata)
         {
             if (e.IsBinary)
             {

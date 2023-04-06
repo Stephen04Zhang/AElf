@@ -43,6 +43,8 @@ public class StreamService : IStreamService, ISingletonDependency
     {
         var peer = _peerPool.FindPeerByPublicKey(context.GetPublicKey());
         var streamPeer = peer as GrpcStreamPeer;
+        Logger.LogInformation("receive {requestId} {streamType} {meta}", request.RequestId, request.StreamType, request.Meta);
+
         await DoProcessAsync(new StreamMessageMetaStreamContext(request.Meta), request, streamPeer);
     }
 
@@ -143,28 +145,28 @@ public class StreamService : IStreamService, ISingletonDependency
             Logger.LogWarning("Could not find peer {pubKey}", context.GetPubKey());
             return false;
         }
-
+        
         // check that the peers session is equal to one announced in the headers
         var sessionId = context.GetSessionId();
-
+        
         if (peer.InboundSessionId.ToHex().Equals(sessionId))
         {
             context.SetPeerInfo(peer.ToString());
             return true;
         }
-
+        
         if (peer.InboundSessionId == null)
         {
             Logger.LogWarning("Wrong inbound session id {peer}, {streamType}-{messageType}", context.GetPeerInfo(), message.StreamType, message.MessageType);
             return false;
         }
-
+        
         if (sessionId == null)
         {
             Logger.LogWarning("Wrong inbound session id {peer}, {requestId}", peer, message.RequestId);
             return false;
         }
-
+        
         Logger.LogWarning("Unequal session id, ({inboundSessionId} {infoSession} vs {sessionId}) {streamType}-{messageType} {pubkey}  {peer}", peer.InboundSessionId.ToHex(), peer.Info.SessionId.ToHex(),
             sessionId, message.StreamType, message.MessageType, peer.Info.Pubkey, peer);
         return false;

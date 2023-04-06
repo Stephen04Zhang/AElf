@@ -30,7 +30,7 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
         {
             await RequestAsync(() => StreamRequestAsync(MessageType.Disconnect,
                     new DisconnectReason { Why = DisconnectReason.Types.Reason.Shutdown },
-                    AddPeerMeta(new Metadata { { GrpcConstants.SessionIdMetadataKey, OutboundSessionId } })),
+                    new Metadata { { GrpcConstants.SessionIdMetadataKey, OutboundSessionId } }),
                 new GrpcRequest { ErrorMessage = "Could not send disconnect." });
         }
         catch (Exception)

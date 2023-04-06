@@ -235,9 +235,14 @@ public class PeerDialer : IPeerDialer
     {
         try
         {
-            
+            var nodePubkey = (await _accountService.GetPublicKeyAsync()).ToHex();
             var call = client.Client.RequestByStream(new CallOptions().WithDeadline(DateTime.MaxValue));
-            var streamPeer = new GrpcStreamPeer(client, remoteEndpoint, connectionInfo, call, null, _streamTaskResourcePool, new Dictionary<string, string>());
+            var streamPeer = new GrpcStreamPeer(client, remoteEndpoint, connectionInfo, call, null, _streamTaskResourcePool,
+                new Dictionary<string, string>()
+                {
+                    { GrpcConstants.PubkeyMetadataKey, nodePubkey },
+                    { GrpcConstants.PeerInfoMetadataKey, connectionInfo.ToString() }
+                });
             var tokenSource = new CancellationTokenSource();
             Task.Run(async () =>
             {
