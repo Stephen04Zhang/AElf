@@ -18,6 +18,17 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
     {
     }
 
+    public override async Task CheckHealthAsync()
+    {
+        var request = new GrpcRequest { ErrorMessage = "Check health failed." };
+
+        var data = new Metadata
+        {
+            { GrpcConstants.TimeoutMetadataKey, CheckHealthTimeout.ToString() },
+        };
+        await RequestAsync(() => StreamRequestAsync(MessageType.HealthCheck, new HealthCheckRequest(), data), request);
+    }
+
     public override async Task DisconnectAsync(bool gracefulDisconnect)
     {
         if (!IsConnected) return;
