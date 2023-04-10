@@ -1,12 +1,6 @@
-using System;
-using System.Linq;
 using System.Threading.Tasks;
-using AElf.OS.Network.Grpc.Helpers;
 using AElf.Types;
 using Google.Protobuf;
-using Grpc.Core;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Volo.Abp.DependencyInjection;
 
 namespace AElf.OS.Network.Grpc;
@@ -20,12 +14,10 @@ public interface IStreamMethod
 public abstract class StreamMethod : IStreamMethod
 {
     public abstract MessageType Method { get; }
-    protected readonly IConnectionService ConnectionService;
     protected readonly IGrpcRequestProcessor GrpcRequestProcessor;
 
-    protected StreamMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor)
+    protected StreamMethod(IGrpcRequestProcessor grpcRequestProcessor)
     {
-        ConnectionService = connectionService;
         GrpcRequestProcessor = grpcRequestProcessor;
     }
 
