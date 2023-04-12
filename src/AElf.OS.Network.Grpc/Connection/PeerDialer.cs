@@ -333,7 +333,6 @@ public class PeerDialer : IPeerDialer
         }).Intercept(new RetryInterceptor());
 
         var client = new PeerService.PeerServiceClient(interceptedChannel);
-
         return new GrpcClient(channel, client, certificate);
     }
 

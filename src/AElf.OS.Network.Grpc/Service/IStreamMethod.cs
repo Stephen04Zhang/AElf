@@ -28,7 +28,7 @@ public class GetNodesMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.GetNodes;
 
-    public GetNodesMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public GetNodesMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -42,7 +42,7 @@ public class HealthCheckMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.HealthCheck;
 
-    public HealthCheckMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public HealthCheckMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -56,7 +56,7 @@ public class PingMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.Ping;
 
-    public PingMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public PingMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -70,7 +70,7 @@ public class DisconnectMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.Disconnect;
 
-    public DisconnectMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public DisconnectMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -85,7 +85,7 @@ public class ConfirmHandShakeMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.ConfirmHandShake;
 
-    public ConfirmHandShakeMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public ConfirmHandShakeMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -100,7 +100,7 @@ public class RequestBlockMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.RequestBlock;
 
-    public RequestBlockMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public RequestBlockMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -114,7 +114,7 @@ public class RequestBlocksMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.RequestBlocks;
 
-    public RequestBlocksMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public RequestBlocksMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -128,7 +128,7 @@ public class BlockBroadcastMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.BlockBroadcast;
 
-    public BlockBroadcastMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public BlockBroadcastMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -143,7 +143,7 @@ public class AnnouncementBroadcastMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.AnnouncementBroadcast;
 
-    public AnnouncementBroadcastMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public AnnouncementBroadcastMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -158,7 +158,7 @@ public class TransactionBroadcastMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.TransactionBroadcast;
 
-    public TransactionBroadcastMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public TransactionBroadcastMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 
@@ -173,7 +173,7 @@ public class LibAnnouncementBroadcastMethod : StreamMethod, ISingletonDependency
 {
     public override MessageType Method => MessageType.LibAnnouncementBroadcast;
 
-    public LibAnnouncementBroadcastMethod(IConnectionService connectionService, IGrpcRequestProcessor grpcRequestProcessor) : base(connectionService, grpcRequestProcessor)
+    public LibAnnouncementBroadcastMethod(IGrpcRequestProcessor grpcRequestProcessor) : base(grpcRequestProcessor)
     {
     }
 

@@ -142,7 +142,7 @@ public class GrpcStreamPeer : GrpcPeer
             { GrpcConstants.TimeoutMetadataKey, BlockRequestTimeout.ToString() },
         };
         var blockMessage = await RequestAsync(() => StreamRequestAsync(MessageType.RequestBlock, blockRequest, data), request);
-        return BlockWithTransactions.Parser.ParseFrom(blockMessage.Message);
+        return BlockReply.Parser.ParseFrom(blockMessage.Message).Block;
     }
 
     public override async Task<NodeList> GetNodesAsync(int count = NetworkConstants.DefaultDiscoveryMaxNodesToRequest)
