@@ -254,7 +254,7 @@ public class GrpcRequestProcessor : IGrpcRequestProcessor, ISingletonDependency
     ///     because when we start transferring data using the streaming RPC,
     ///     the request no longer goes through the <see cref="AuthInterceptor" />.
     /// </exception>
-    private GrpcPeerBase TryGetPeerByPubkey(string peerPubkey)
+    private GrpcPeer TryGetPeerByPubkey(string peerPubkey)
     {
         var peer = _connectionService.GetPeerByPubkey(peerPubkey);
 

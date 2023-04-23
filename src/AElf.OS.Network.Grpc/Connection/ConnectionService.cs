@@ -2,9 +2,9 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using AElf.Kernel;
 using AElf.OS.Network.Application;
 using AElf.OS.Network.Events;
+using AElf.OS.Network.Grpc.Helpers;
 using AElf.OS.Network.Infrastructure;
 using AElf.OS.Network.Protocol;
 using AElf.OS.Network.Types;
@@ -12,7 +12,6 @@ using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
@@ -77,9 +76,9 @@ public class ConnectionService : IConnectionService
         return _reconnectionService.SchedulePeerForReconnection(peer.RemoteEndpoint.ToString());
     }
 
-    public GrpcPeerBase GetPeerByPubkey(string pubkey)
+    public GrpcPeer GetPeerByPubkey(string pubkey)
     {
-        return _peerPool.FindPeerByPublicKey(pubkey) as GrpcPeerBase;
+        return _peerPool.FindPeerByPublicKey(pubkey) as GrpcPeer;
     }
 
     /// <summary>
@@ -190,7 +189,7 @@ public class ConnectionService : IConnectionService
         if (preCheckRes != null)
             return preCheckRes;
 
-        if (handshake.HandshakeData.ListeningPort == KernelConstants.ClosedPort)
+        if (handshake.HandshakeData.NodeVersion.GreaterThanSupportStreamMinVersion())
         {
             Logger.LogDebug("receive close port handshake, will upgrade to stream, remote={endpoint}", endpoint.Host);
             return new HandshakeReply { Handshake = await _handshakeProvider.GetHandshakeAsync(), Error = HandshakeError.HandshakeOk };
@@ -216,7 +215,7 @@ public class ConnectionService : IConnectionService
             var oldPeer = _peerPool.FindPeerByPublicKey(pubkey);
             if (oldPeer != null)
             {
-                var oldPeerIsStream = oldPeer.RemoteEndpoint.Port == KernelConstants.ClosedPort;
+                var oldPeerIsStream = oldPeer is GrpcStreamBackPeer;
                 if (oldPeerIsStream && oldPeer.IsInvalid && _peerPool.TryReplace(pubkey, oldPeer, grpcPeer))
                 {
                     await oldPeer.DisconnectAsync(false);
@@ -240,7 +239,7 @@ public class ConnectionService : IConnectionService
             Logger.LogDebug($"Added to pool {grpcPeer.RemoteEndpoint} - {grpcPeer.Info.Pubkey}.");
 
             // send back our handshake
-            var replyHandshake = await _handshakeProvider.GetHandshakeAsync(KernelConstants.PreProtocolVersion);
+            var replyHandshake = await _handshakeProvider.GetHandshakeAsync();
             grpcPeer.InboundSessionId = replyHandshake.SessionId.ToByteArray();
             grpcPeer.UpdateLastSentHandshake(replyHandshake);
 
@@ -279,7 +278,7 @@ public class ConnectionService : IConnectionService
             var oldPeer = _peerPool.FindPeerByPublicKey(pubkey);
             if (oldPeer != null)
             {
-                var oldPeerIsStream = oldPeer.RemoteEndpoint.Port == KernelConstants.ClosedPort;
+                var oldPeerIsStream = oldPeer is GrpcStreamBackPeer;
                 if (_peerPool.TryReplace(pubkey, oldPeer, grpcPeer))
                 {
                     await oldPeer.DisconnectAsync(false);
@@ -317,7 +316,7 @@ public class ConnectionService : IConnectionService
 
     public void ConfirmHandshake(string peerPubkey)
     {
-        var peer = _peerPool.FindPeerByPublicKey(peerPubkey) as GrpcPeerBase;
+        var peer = _peerPool.FindPeerByPublicKey(peerPubkey) as GrpcPeer;
         if (peer == null)
         {
             Logger.LogWarning($"Cannot find Peer {peerPubkey} in the pool.");
@@ -353,7 +352,7 @@ public class ConnectionService : IConnectionService
         return await _peerDialer.CheckEndpointAvailableAsync(endpoint);
     }
 
-    private void FireConnectionEvent(GrpcPeerBase peer)
+    private void FireConnectionEvent(GrpcPeer peer)
     {
         var nodeInfo = new NodeInfo
             { Endpoint = peer.RemoteEndpoint.ToString(), Pubkey = ByteStringHelper.FromHexString(peer.Info.Pubkey) };
@@ -363,7 +362,7 @@ public class ConnectionService : IConnectionService
         _ = EventBus.PublishAsync(new PeerConnectedEventData(nodeInfo, bestChainHash, bestChainHeight));
     }
 
-    private async Task<GrpcPeerBase> GetDialedPeerWithEndpointAsync(DnsEndPoint endpoint)
+    private async Task<GrpcPeer> GetDialedPeerWithEndpointAsync(DnsEndPoint endpoint)
     {
         var peer = _peerPool.FindPeerByEndpoint(endpoint);
         if (peer != null)

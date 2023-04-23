@@ -10,7 +10,6 @@ using AElf.Kernel.Account.Application;
 using AElf.Kernel.SmartContract;
 using AElf.OS.Network.Events;
 using AElf.OS.Network.Grpc.Helpers;
-using AElf.OS.Network.Infrastructure;
 using AElf.OS.Network.Protocol;
 using AElf.OS.Network.Protocol.Types;
 using Google.Protobuf;
@@ -61,14 +60,14 @@ public class PeerDialer : IPeerDialer
     ///     further communications.
     /// </summary>
     /// <returns>The created peer</returns>
-    public async Task<GrpcPeerBase> DialPeerAsync(DnsEndPoint remoteEndpoint)
+    public async Task<GrpcPeer> DialPeerAsync(DnsEndPoint remoteEndpoint)
     {
         var client = await CreateClientAsync(remoteEndpoint);
 
         if (client == null)
             return null;
 
-        var handshake = await _handshakeProvider.GetHandshakeAsync(KernelConstants.PreProtocolVersion);
+        var handshake = await _handshakeProvider.GetHandshakeAsync();
         var handshakeReply = await CallDoHandshakeAsync(client, remoteEndpoint, handshake);
 
         if (!await ProcessHandshakeReplyAsync(handshakeReply, remoteEndpoint))
@@ -86,7 +85,7 @@ public class PeerDialer : IPeerDialer
             IsInbound = false,
             NodeVersion = handshakeReply.Handshake.HandshakeData.NodeVersion
         };
-        GrpcPeerBase peer;
+        GrpcPeer peer;
 
         if (UpgradeToStream(handshake, handshakeReply.Handshake))
         {
@@ -123,7 +122,7 @@ public class PeerDialer : IPeerDialer
     }
 
 
-    public async Task<GrpcPeerBase> DialBackPeerByStreamAsync(DnsEndPoint remoteEndpoint, IAsyncStreamWriter<StreamMessage> responseStream, Handshake handshake)
+    public async Task<GrpcPeer> DialBackPeerByStreamAsync(DnsEndPoint remoteEndpoint, IAsyncStreamWriter<StreamMessage> responseStream, Handshake handshake)
     {
         Logger.LogWarning("receive stream ping reply");
         var info = new PeerConnectionInfo
@@ -168,7 +167,7 @@ public class PeerDialer : IPeerDialer
         }
     }
 
-    public async Task<GrpcPeerBase> DialBackPeerAsync(DnsEndPoint remoteEndpoint, Handshake handshake)
+    public async Task<GrpcPeer> DialBackPeerAsync(DnsEndPoint remoteEndpoint, Handshake handshake)
     {
         var client = await CreateClientAsync(remoteEndpoint);
 
@@ -176,7 +175,8 @@ public class PeerDialer : IPeerDialer
             return null;
 
         await PingNodeAsync(client, remoteEndpoint);
-        var connectionInfo = new PeerConnectionInfo
+
+        var peer = new GrpcPeer(client, remoteEndpoint, new PeerConnectionInfo
         {
             Pubkey = handshake.HandshakeData.Pubkey.ToHex(),
             ConnectionTime = TimestampHelper.GetUtcNow(),
@@ -184,8 +184,7 @@ public class PeerDialer : IPeerDialer
             ProtocolVersion = handshake.HandshakeData.Version,
             IsInbound = true,
             NodeVersion = handshake.HandshakeData.NodeVersion
-        };
-        var peer = new GrpcPeer(client, remoteEndpoint, connectionInfo);
+        });
 
         peer.UpdateLastReceivedHandshake(handshake);
 
@@ -213,7 +212,9 @@ public class PeerDialer : IPeerDialer
                 { GrpcConstants.RetryCountMetadataKey, "0" },
                 { GrpcConstants.TimeoutMetadataKey, (NetworkOptions.PeerDialTimeout * 2).ToString() }
             };
-            handshakeReply = await client.Client.DoHandshakeAsync(new HandshakeRequest { Handshake = handshake }, metadata);
+
+            handshakeReply =
+                await client.Client.DoHandshakeAsync(new HandshakeRequest { Handshake = handshake }, metadata);
 
             Logger.LogDebug($"Handshake to {remoteEndPoint} successful.");
         }
@@ -228,7 +229,7 @@ public class PeerDialer : IPeerDialer
 
     private bool UpgradeToStream(Handshake handshake, Handshake handshakeReply)
     {
-        return handshake.HandshakeData.ListeningPort == KernelConstants.ClosedPort && handshakeReply.HandshakeData.Version == KernelConstants.ProtocolVersion;
+        return handshake.HandshakeData.NodeVersion.GreaterThanSupportStreamMinVersion() && handshakeReply.HandshakeData.NodeVersion.GreaterThanSupportStreamMinVersion();
     }
 
     private async Task<GrpcStreamPeer> DailStreamPeerAsync(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo connectionInfo)

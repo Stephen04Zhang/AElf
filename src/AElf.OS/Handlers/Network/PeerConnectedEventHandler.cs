@@ -1,9 +1,7 @@
 using System.Threading.Tasks;
-using AElf.Kernel;
 using AElf.OS.Network;
 using AElf.OS.Network.Application;
 using AElf.OS.Network.Events;
-using AElf.OS.Network.Helpers;
 using Microsoft.Extensions.Logging;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus;
@@ -27,8 +25,7 @@ public class PeerConnectedEventHandler : ILocalEventHandler<PeerConnectedEventDa
     {
         Logger.LogDebug($"Peer connection event {eventData.NodeInfo}");
 
-        if (AElfPeerEndpointHelper.GetEndpointPort(eventData.NodeInfo.Endpoint) != KernelConstants.ClosedPort)
-            await _peerDiscoveryService.AddNodeAsync(eventData.NodeInfo);
+        await _peerDiscoveryService.AddNodeAsync(eventData.NodeInfo);
 
         var blockAnnouncement = new BlockAnnouncement
         {

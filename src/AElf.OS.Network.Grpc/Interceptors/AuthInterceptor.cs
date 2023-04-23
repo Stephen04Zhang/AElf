@@ -27,7 +27,6 @@ public class AuthInterceptor : Interceptor
         {
             if (IsNeedAuth(context.Method))
             {
-                Logger.LogDebug("context sessionId {sessionId} {request}", context.GetSessionId().ToHex(), request.GetType());
                 var peer = _peerPool.FindPeerByPublicKey(context.GetPublicKey());
 
                 if (peer == null)

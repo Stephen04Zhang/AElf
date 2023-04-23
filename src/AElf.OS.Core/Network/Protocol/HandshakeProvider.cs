@@ -16,7 +16,7 @@ public class HandshakeProvider : IHandshakeProvider
     private readonly IAccountService _accountService;
     private readonly IBlockchainService _blockchainService;
     private readonly NetworkOptions _networkOptions;
-    private static readonly string NodeVersion = typeof(CoreOSAElfModule).Assembly.GetName().Version?.ToString();
+    public static readonly string NodeVersion = typeof(CoreOSAElfModule).Assembly.GetName().Version?.ToString();
 
     public HandshakeProvider(IAccountService accountService, IBlockchainService blockchainService,
         IOptionsSnapshot<NetworkOptions> networkOptions)
@@ -30,14 +30,14 @@ public class HandshakeProvider : IHandshakeProvider
 
     public ILogger<HandshakeProvider> Logger { get; set; }
 
-    public async Task<Handshake> GetHandshakeAsync(int version)
+    public async Task<Handshake> GetHandshakeAsync()
     {
         var chain = await _blockchainService.GetChainAsync();
 
         var handshakeData = new HandshakeData
         {
             ChainId = chain.Id,
-            Version = version,
+            Version = KernelConstants.ProtocolVersion,
             ListeningPort = _networkOptions.ListeningPort,
             Pubkey = ByteString.CopyFrom(await _accountService.GetPublicKeyAsync()),
             BestChainHash = chain.BestChainHash,
@@ -60,11 +60,6 @@ public class HandshakeProvider : IHandshakeProvider
         return handshake;
     }
 
-    private bool IsInvalidProtocolVersion(int version)
-    {
-        return version != KernelConstants.ProtocolVersion && version != KernelConstants.PreProtocolVersion;
-    }
-
     public async Task<HandshakeValidationResult> ValidateHandshakeAsync(Handshake handshake)
     {
         var pubkey = handshake.HandshakeData.Pubkey.ToHex();
@@ -79,9 +74,9 @@ public class HandshakeProvider : IHandshakeProvider
             return HandshakeValidationResult.InvalidChainId;
         }
 
-        if (IsInvalidProtocolVersion(handshake.HandshakeData.Version))
+        if (handshake.HandshakeData.Version != KernelConstants.ProtocolVersion)
         {
-            Logger.LogDebug($"Version is incorrect: {handshake.HandshakeData.Version}.");
+            Logger.LogDebug($"Version is is incorrect: {handshake.HandshakeData.Version}.");
             return HandshakeValidationResult.InvalidVersion;
         }
 

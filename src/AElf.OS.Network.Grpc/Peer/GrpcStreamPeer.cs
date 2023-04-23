@@ -82,19 +82,19 @@ public class GrpcStreamPeer : GrpcPeer
         await RequestAsync(() => StreamRequestAsync(MessageType.ConfirmHandShake, new ConfirmHandshakeRequest(), data), request);
     }
 
-    public override async Task BroadcastBlockAsync(BlockWithTransactions blockWithTransactions)
+    protected override async Task BroadcastBlockAsync(BlockWithTransactions blockWithTransactions)
     {
         var request = new GrpcRequest { ErrorMessage = "broadcast block failed." };
         await RequestAsync(() => StreamRequestAsync(MessageType.BlockBroadcast, blockWithTransactions), request);
     }
 
-    public override async Task SendAnnouncementAsync(BlockAnnouncement header)
+    protected override async Task SendAnnouncementAsync(BlockAnnouncement header)
     {
         var request = new GrpcRequest { ErrorMessage = "broadcast block announcement failed." };
         await RequestAsync(() => StreamRequestAsync(MessageType.AnnouncementBroadcast, header), request);
     }
 
-    public override async Task SendTransactionAsync(Transaction transaction)
+    protected override async Task SendTransactionAsync(Transaction transaction)
     {
         var request = new GrpcRequest { ErrorMessage = "broadcast transaction failed." };
         await RequestAsync(() => StreamRequestAsync(MessageType.TransactionBroadcast, transaction), request);

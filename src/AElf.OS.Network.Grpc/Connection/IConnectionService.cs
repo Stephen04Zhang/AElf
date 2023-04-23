@@ -7,11 +7,11 @@ namespace AElf.OS.Network.Grpc;
 
 public interface IConnectionService
 {
-    GrpcPeerBase GetPeerByPubkey(string pubkey);
+    GrpcPeer GetPeerByPubkey(string pubkey);
     Task DisconnectAsync(IPeer peer, bool sendDisconnect = false);
     Task<bool> SchedulePeerReconnection(DnsEndPoint endpoint);
     Task<bool> TrySchedulePeerReconnectionAsync(IPeer peer);
-    Task<bool> ConnectAsync(DnsEndPoint endpoint);
+    Task<bool> ConnectAsync(DnsEndPoint endpoint);                                                                      
     Task<HandshakeReply> DoHandshakeAsync(DnsEndPoint endpoint, Handshake handshake);
     Task<HandshakeReply> DoHandshakeByStreamAsync(DnsEndPoint endpoint, IAsyncStreamWriter<StreamMessage> responseStream, Handshake handshake);
     void ConfirmHandshake(string peerPubkey);
