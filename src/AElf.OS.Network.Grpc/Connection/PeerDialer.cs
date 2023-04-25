@@ -267,7 +267,8 @@ public class PeerDialer : IPeerDialer
         catch (Exception e)
         {
             Logger.LogError(e, "stream handle shake failed {remoteEndpoint}", remoteEndpoint);
-            await client.Channel.ShutdownAsync();
+            if (client.Channel.State == ChannelState.Idle || client.Channel.State == ChannelState.Ready)
+                await client.Channel.ShutdownAsync();
             throw;
         }
     }

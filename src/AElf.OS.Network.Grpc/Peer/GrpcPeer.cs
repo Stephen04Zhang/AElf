@@ -56,8 +56,8 @@ public class GrpcPeer : IPeer
 
     public GrpcPeer(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo)
     {
-        _channel = client.Channel;
-        _client = client.Client;
+        _channel = client?.Channel;
+        _client = client?.Client;
 
         RemoteEndpoint = remoteEndpoint;
         Info = peerConnectionInfo;
@@ -108,14 +108,14 @@ public class GrpcPeer : IPeer
     ///     Property that describes that describes if the peer is ready for send/request operations. It's based
     ///     on the state of the underlying channel and the IsConnected.
     /// </summary>
-    public bool IsReady => (_channel.State == ChannelState.Idle || _channel.State == ChannelState.Ready) && IsConnected;
+    public bool IsReady => _channel != null ? (_channel.State == ChannelState.Idle || _channel.State == ChannelState.Ready) && IsConnected : IsConnected;
 
     public bool IsInvalid =>
         !IsConnected &&
         Info.ConnectionTime.AddMilliseconds(NetworkConstants.PeerConnectionTimeout) <
         TimestampHelper.GetUtcNow();
 
-    public string ConnectionStatus => _channel.State.ToString();
+    public string ConnectionStatus => _channel != null ? _channel.State.ToString() : "unknown";
 
     public Hash LastKnownLibHash { get; private set; }
     public long LastKnownLibHeight { get; private set; }
@@ -134,7 +134,7 @@ public class GrpcPeer : IPeer
     public int BufferedAnnouncementsCount => _sendAnnouncementJobs.InputCount;
 
     public PeerConnectionInfo Info { get; }
-    
+
     public Dictionary<string, List<RequestMetric>> GetRequestMetrics()
     {
         var metrics = new Dictionary<string, List<RequestMetric>>();
@@ -156,7 +156,7 @@ public class GrpcPeer : IPeer
         {
             { GrpcConstants.TimeoutMetadataKey, GetNodesTimeout.ToString() },
             { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
-        };
+        };                                                                                   
 
         return RequestAsync(() => _client.GetNodesAsync(new NodesRequest { MaxCount = count }, data), request);
     }
