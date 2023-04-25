@@ -191,7 +191,7 @@ public class ConnectionService : IConnectionService
 
         if (handshake.HandshakeData.NodeVersion.GreaterThanSupportStreamMinVersion())
         {
-            Logger.LogDebug("receive close port handshake, will upgrade to stream, remote={endpoint}", endpoint.Host);
+            Logger.LogDebug("receive nodeversion>=1.4.0 handshake, will upgrade to stream, remote={endpoint}", endpoint.Host);
             return new HandshakeReply { Handshake = await _handshakeProvider.GetHandshakeAsync(), Error = HandshakeError.HandshakeOk };
         }
 
