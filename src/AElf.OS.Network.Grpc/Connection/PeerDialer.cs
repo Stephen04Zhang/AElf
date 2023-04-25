@@ -247,8 +247,16 @@ public class PeerDialer : IPeerDialer
             var tokenSource = new CancellationTokenSource();
             Task.Run(async () =>
             {
-                await call.ResponseStream.ForEachAsync(async req => await
-                    EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), streamPeer.Info.Pubkey)));
+                try
+                {
+                    await call.ResponseStream.ForEachAsync(async req => await
+                        EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), streamPeer.Info.Pubkey), false));
+                    Logger.LogDebug("listen end and complete {remoteEndPoint}", remoteEndpoint.ToString());
+                }
+                catch (Exception e)
+                {
+                    Logger.LogDebug(e, "listen err {remoteEndPoint}", remoteEndpoint.ToString());
+                }
             }, tokenSource.Token);
             streamPeer.StartServe(tokenSource);
             var handshake = await _handshakeProvider.GetHandshakeAsync();
