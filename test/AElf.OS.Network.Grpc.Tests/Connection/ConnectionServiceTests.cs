@@ -430,7 +430,7 @@ public class ConnectionServiceTests : GrpcNetworkTestBase
         return new Handshake { HandshakeData = data, Signature = ByteString.CopyFrom(signature) };
     }
 
-    private GrpcPeerBase CreatePeerAndAddToPeerPool(string ip = NetworkTestConstants.FakeIpEndpoint,
+    private GrpcPeer CreatePeerAndAddToPeerPool(string ip = NetworkTestConstants.FakeIpEndpoint,
         string pubkey = NetworkTestConstants.FakePubkey)
     {
         var peer = GrpcTestPeerHelper.CreateBasicPeer(ip, pubkey);

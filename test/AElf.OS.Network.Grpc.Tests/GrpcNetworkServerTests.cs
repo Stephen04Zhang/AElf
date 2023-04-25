@@ -25,7 +25,7 @@ public class GrpcNetworkServerTests : GrpcNetworkTestBase
         _reconnectionService = GetRequiredService<IReconnectionService>();
     }
 
-    private GrpcPeerBase AddPeerToPool(string ip = NetworkTestConstants.FakeIpEndpoint,
+    private GrpcPeer AddPeerToPool(string ip = NetworkTestConstants.FakeIpEndpoint,
         string pubkey = NetworkTestConstants.FakePubkey)
     {
         var peer = GrpcTestPeerHelper.CreateBasicPeer(ip, pubkey);

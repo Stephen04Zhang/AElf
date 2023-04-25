@@ -75,7 +75,7 @@ public class GrpcNetworkTestModule : AElfModule
             mockDialer.Setup(d => d.DialPeerAsync(It.Is<DnsEndPoint>(endPoint =>
                     endPoint.ToString() == NetworkTestConstants
                         .DialExceptionIpEndpoint)))
-                .Returns(Task.FromResult<GrpcPeerBase>(null));
+                .Returns(Task.FromResult<GrpcPeer>(null));
 
             mockDialer.Setup(d => d.DialPeerAsync(It.Is<DnsEndPoint>(endPoint =>
                     endPoint.ToString() == NetworkTestConstants.HandshakeWithNetExceptionIp)))
@@ -90,7 +90,7 @@ public class GrpcNetworkTestModule : AElfModule
                         NetworkTestConstants.FakePubkey,
                         mockClient.Object);
 
-                    return Task.FromResult(peer as GrpcPeerBase);
+                    return Task.FromResult(peer as GrpcPeer);
                 });
 
             // Incorrect handshake
@@ -116,7 +116,7 @@ public class GrpcNetworkTestModule : AElfModule
                     var peer = GrpcTestPeerHelper.CreatePeerWithClient(NetworkTestConstants.GoodPeerEndpoint,
                         NetworkTestConstants.FakePubkey, mockClient.Object);
 
-                    return Task.FromResult(peer as GrpcPeerBase);
+                    return Task.FromResult(peer as GrpcPeer);
                 });
 
             // Incorrect handshake signature
@@ -176,7 +176,7 @@ public class GrpcNetworkTestModule : AElfModule
                         NetworkTestConstants.FakePubkey, mockClient.Object);
                     peer.UpdateLastSentHandshake(handshakeReply.Handshake);
 
-                    return Task.FromResult(peer as GrpcPeerBase);
+                    return Task.FromResult(peer);
                 });
 
             mockDialer.Setup(d => d.DialBackPeerAsync(It.IsAny<DnsEndPoint>(), It.IsAny<Handshake>()))
@@ -189,7 +189,7 @@ public class GrpcNetworkTestModule : AElfModule
                         return Task.FromResult(peer);
                     }
 
-                    return Task.FromResult<GrpcPeerBase>(null);
+                    return Task.FromResult<GrpcPeer>(null);
                 });
 
             return mockDialer.Object;

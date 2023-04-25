@@ -407,7 +407,7 @@ public class GrpcPeerTests : GrpcNetworkWithChainTestBase
         }
     }
 
-    private GrpcPeerBase CreatePeer(PeerService.PeerServiceClient client)
+    private GrpcPeer CreatePeer(PeerService.PeerServiceClient client)
     {
         return GrpcTestPeerHelper.CreatePeerWithClient("127.0.0.1:2000", NetworkTestConstants.FakePubkey, client);
     }

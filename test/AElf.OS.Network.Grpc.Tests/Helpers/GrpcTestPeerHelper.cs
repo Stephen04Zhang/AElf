@@ -15,7 +15,7 @@ public static class GrpcTestPeerHelper
         return new("127.0.0.1:9999", ChannelCredentials.Insecure);
     }
 
-    public static GrpcPeerBase CreateBasicPeer(string ip, string pubkey)
+    public static GrpcPeer CreateBasicPeer(string ip, string pubkey)
     {
         return CreatePeerWithInfo(ip,
             new PeerConnectionInfo
