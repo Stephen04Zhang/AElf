@@ -294,8 +294,9 @@ public class NetworkService : INetworkService, ISingletonDependency
 
         if (isTrusted)
             _blackListedPeerProvider.RemoveHostFromBlackList(aelfPeerEndpoint.Host);
-
-        return await _networkServer.ConnectAsync(aelfPeerEndpoint);
+        // because stream client can close port and we may not connect to, so we check available before reconnect  
+        var available = await _networkServer.CheckEndpointAvailableAsync(aelfPeerEndpoint);
+        return !available || await _networkServer.ConnectAsync(aelfPeerEndpoint);
     }
 
     /// <summary>

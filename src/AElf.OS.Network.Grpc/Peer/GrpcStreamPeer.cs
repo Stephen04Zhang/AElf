@@ -8,53 +8,95 @@ using System.Threading.Tasks.Dataflow;
 using AElf.CSharp.Core.Extension;
 using AElf.Kernel;
 using AElf.OS.Network.Application;
+using AElf.OS.Network.Events;
 using AElf.OS.Network.Grpc.Helpers;
+using AElf.OS.Network.Protocol;
 using AElf.OS.Network.Protocol.Types;
 using AElf.Types;
 using Google.Protobuf;
 using Grpc.Core;
+using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
 
 public class GrpcStreamPeer : GrpcPeer
 {
     private const int StreamWaitTime = 500;
-    private readonly AsyncDuplexStreamingCall<StreamMessage, StreamMessage> _duplexStreamingCall;
+    private ILocalEventBus _eventBus;
+    private AsyncDuplexStreamingCall<StreamMessage, StreamMessage> _duplexStreamingCall;
     private CancellationTokenSource _streamListenTaskTokenSource;
-    private readonly IAsyncStreamWriter<StreamMessage> _clientStreamWriter;
+    private IAsyncStreamWriter<StreamMessage> _clientStreamWriter;
+    private readonly IHandshakeProvider _handshakeProvider;
 
     private readonly IStreamTaskResourcePool _streamTaskResourcePool;
     private readonly Dictionary<string, string> _peerMeta;
 
     protected readonly ActionBlock<StreamJob> _sendStreamJobs;
     public ILogger<GrpcStreamPeer> Logger { get; set; }
+    private bool _isComplete { get; set; }
+    protected virtual bool IsStreamBack => false;
 
     public GrpcStreamPeer(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo,
-        AsyncDuplexStreamingCall<StreamMessage, StreamMessage> duplexStreamingCall,
         IAsyncStreamWriter<StreamMessage> clientStreamWriter,
-        IStreamTaskResourcePool streamTaskResourcePool, Dictionary<string, string> peerMeta) : base(client,
+        IStreamTaskResourcePool streamTaskResourcePool, Dictionary<string, string> peerMeta,
+        ILocalEventBus eventBus, IHandshakeProvider handshakeProvider) : base(client,
         remoteEndpoint, peerConnectionInfo)
     {
-        _duplexStreamingCall = duplexStreamingCall;
-        _clientStreamWriter = duplexStreamingCall?.RequestStream ?? clientStreamWriter;
+        _clientStreamWriter = clientStreamWriter;
         _streamTaskResourcePool = streamTaskResourcePool;
         _peerMeta = peerMeta;
+        _eventBus = eventBus;
+        _handshakeProvider = handshakeProvider;
         _sendStreamJobs = new ActionBlock<StreamJob>(WriteStreamJobAsync);
         Logger = NullLogger<GrpcStreamPeer>.Instance;
     }
 
 
-    public void StartServe(CancellationTokenSource listenTaskTokenSource)
+    public async Task<bool> StartServe()
     {
-        _streamListenTaskTokenSource = listenTaskTokenSource;
+        _duplexStreamingCall = _client.RequestByStream(new CallOptions().WithDeadline(DateTime.MaxValue));
+        _clientStreamWriter = _duplexStreamingCall.RequestStream;
+        var tokenSource = new CancellationTokenSource();
+        Task.Run(async () =>
+        {
+            await _duplexStreamingCall.ResponseStream.ForEachAsync(async req => await
+                _eventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), Info.Pubkey)));
+            Logger.LogDebug("streaming listen end and complete, {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", RemoteEndpoint.ToString(), InboundSessionId.ToHex(), Info.SessionId.ToHex());
+            _isComplete = true;
+        }, tokenSource.Token);
+        var handshake = await _handshakeProvider.GetHandshakeAsync();
+        var handShakeReply = await HandShakeAsync(new HandshakeRequest { Handshake = handshake });
+        if (!await ProcessHandshakeReplyAsync(handShakeReply, RemoteEndpoint))
+        {
+            await DisconnectAsync(true);
+            Logger.LogDebug("stream handshake failed, and return {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", RemoteEndpoint.ToString(), InboundSessionId.ToHex(), Info.SessionId.ToHex());
+            return false;
+        }
+
+        InboundSessionId = handshake.SessionId.ToByteArray();
+        Info.SessionId = handShakeReply.Handshake.SessionId.ToByteArray();
+        Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", RemoteEndpoint.ToString(), InboundSessionId.ToHex(), Info.SessionId.ToHex());
+        _isComplete = false;
+        _streamListenTaskTokenSource = tokenSource;
+        return true;
     }
 
     public override async Task DisconnectAsync(bool gracefulDisconnect)
     {
+        _isComplete = true;
         _sendStreamJobs.Complete();
-        await _duplexStreamingCall?.RequestStream?.CompleteAsync();
+        try
+        {
+            await _duplexStreamingCall?.RequestStream?.CompleteAsync();
+        }
+        catch (Exception)
+        {
+            // swallow the exception, we don't care because we're disconnecting.
+        }
+
         _duplexStreamingCall?.Dispose();
         _streamListenTaskTokenSource?.Cancel();
         await base.DisconnectAsync(gracefulDisconnect);
@@ -198,8 +240,25 @@ public class GrpcStreamPeer : GrpcPeer
         job.SendCallback?.Invoke(null);
     }
 
+    private async Task<bool> RebuildStreamAsync()
+    {
+        if (IsStreamBack || !_isComplete) return true;
+        try
+        {
+            StartServe();
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     protected async Task<TResp> RequestAsync<TResp>(Func<Task<TResp>> func, GrpcRequest request)
     {
+        if (!IsReady || !await RebuildStreamAsync())
+            throw new NetworkException($"Dropping request, peer is not ready - {this}.", NetworkExceptionType.NotConnected);
         var recordRequestTime = !string.IsNullOrEmpty(request.MetricName);
         var requestStartTime = TimestampHelper.GetUtcNow();
         try
@@ -267,5 +326,21 @@ public class GrpcStreamPeer : GrpcPeer
         if (header == null) return StreamWaitTime;
         var t = header.Get(GrpcConstants.TimeoutMetadataKey)?.Value;
         return t == null ? StreamWaitTime : int.Parse(t);
+    }
+
+    private async Task<bool> ProcessHandshakeReplyAsync(HandshakeReply handshakeReply, DnsEndPoint remoteEndpoint)
+    {
+        // verify handshake
+        if (handshakeReply.Error != HandshakeError.HandshakeOk)
+        {
+            Logger.LogWarning("Handshake error: {remoteEndpoint} {Error}.", remoteEndpoint, handshakeReply.Error);
+
+            return false;
+        }
+
+        if (await _handshakeProvider.ValidateHandshakeAsync(handshakeReply.Handshake) ==
+            HandshakeValidationResult.Ok) return true;
+        Logger.LogWarning("Connect error: {remoteEndpoint} {handshakeReply}.", remoteEndpoint, handshakeReply);
+        return false;
     }
 }

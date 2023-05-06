@@ -8,14 +8,11 @@ using System.Threading.Tasks;
 using AElf.Kernel;
 using AElf.Kernel.Account.Application;
 using AElf.Kernel.SmartContract;
-using AElf.OS.Network.Events;
 using AElf.OS.Network.Grpc.Helpers;
 using AElf.OS.Network.Protocol;
 using AElf.OS.Network.Protocol.Types;
-using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -237,32 +234,14 @@ public class PeerDialer : IPeerDialer
         try
         {
             var nodePubkey = (await _accountService.GetPublicKeyAsync()).ToHex();
-            var call = client.Client.RequestByStream(new CallOptions().WithDeadline(DateTime.MaxValue));
-            var streamPeer = new GrpcStreamPeer(client, remoteEndpoint, connectionInfo, call, null, _streamTaskResourcePool,
+            var streamPeer = new GrpcStreamPeer(client, remoteEndpoint, connectionInfo, null, _streamTaskResourcePool,
                 new Dictionary<string, string>()
                 {
                     { GrpcConstants.PubkeyMetadataKey, nodePubkey },
                     { GrpcConstants.PeerInfoMetadataKey, connectionInfo.ToString() }
-                });
-            var tokenSource = new CancellationTokenSource();
-            Task.Run(async () =>
-            {
-                await call.ResponseStream.ForEachAsync(async req => await
-                    EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), streamPeer.Info.Pubkey)));
-            }, tokenSource.Token);
-            streamPeer.StartServe(tokenSource);
-            var handshake = await _handshakeProvider.GetHandshakeAsync();
-            var handShakeReply = await streamPeer.HandShakeAsync(new HandshakeRequest { Handshake = handshake });
-            if (!await ProcessHandshakeReplyAsync(handShakeReply, remoteEndpoint))
-            {
-                await streamPeer.DisconnectAsync(true);
-                return null;
-            }
-
-            streamPeer.InboundSessionId = handshake.SessionId.ToByteArray();
-            streamPeer.Info.SessionId = handShakeReply.Handshake.SessionId.ToByteArray();
-            Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", remoteEndpoint.ToString(), streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex());
-            return streamPeer;
+                }, EventBus, _handshakeProvider);
+            var success = await streamPeer.StartServe();
+            return success ? streamPeer : null;
         }
         catch (Exception e)
         {

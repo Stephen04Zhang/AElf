@@ -39,7 +39,7 @@ public class GrpcPeer : IPeer
     private const int QueuedBlockTimeout = 100_000;
 
     private readonly Channel _channel;
-    private readonly PeerService.PeerServiceClient _client;
+    protected readonly PeerService.PeerServiceClient _client;
     private readonly BoundedExpirationCache _knownBlockCache;
 
     private readonly BoundedExpirationCache _knownTransactionCache;
@@ -115,7 +115,7 @@ public class GrpcPeer : IPeer
         Info.ConnectionTime.AddMilliseconds(NetworkConstants.PeerConnectionTimeout) <
         TimestampHelper.GetUtcNow();
 
-    public string ConnectionStatus => _channel != null ? _channel.State.ToString() : "unknown";
+    public virtual string ConnectionStatus => _channel != null ? _channel.State.ToString() : "";
 
     public Hash LastKnownLibHash { get; private set; }
     public long LastKnownLibHeight { get; private set; }

@@ -13,10 +13,12 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
     public GrpcStreamBackPeer(DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo,
         IAsyncStreamWriter<StreamMessage> clientStreamWriter, IStreamTaskResourcePool streamTaskResourcePool,
         Dictionary<string, string> peerMeta)
-        : base(null, remoteEndpoint, peerConnectionInfo,
-            null, clientStreamWriter, streamTaskResourcePool, peerMeta)
+        : base(null, remoteEndpoint, peerConnectionInfo, clientStreamWriter, streamTaskResourcePool, peerMeta, null, null)
     {
     }
+
+    public override string ConnectionStatus => IsConnected ? "Stream Ready" : "Stream Closed";
+    protected override bool IsStreamBack => true;
 
     public override async Task CheckHealthAsync()
     {
