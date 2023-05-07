@@ -18,7 +18,6 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
     }
 
     public override string ConnectionStatus => IsConnected ? "Stream Ready" : "Stream Closed";
-    protected override bool IsStreamBack => true;
 
     public override async Task CheckHealthAsync()
     {
@@ -57,6 +56,10 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
         return Task.FromResult(true);
     }
 
+    protected override void HandleStreamRpcException(RpcException e, StreamJob job)
+    {
+        job.SendCallback?.Invoke(HandleRpcException(e, $"Could not write to stream to {this}: "));
+    }
 
     public override NetworkException HandleRpcException(RpcException exception, string errorMessage)
     {

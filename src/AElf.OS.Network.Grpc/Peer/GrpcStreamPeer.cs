@@ -37,7 +37,6 @@ public class GrpcStreamPeer : GrpcPeer
     protected readonly ActionBlock<StreamJob> _sendStreamJobs;
     public ILogger<GrpcStreamPeer> Logger { get; set; }
     private bool _isComplete { get; set; }
-    protected virtual bool IsStreamBack => false;
 
     public GrpcStreamPeer(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo,
         IAsyncStreamWriter<StreamMessage> clientStreamWriter,
@@ -55,7 +54,7 @@ public class GrpcStreamPeer : GrpcPeer
     }
 
 
-    public async Task<bool> StartServe()
+    public async Task<bool> BuildStreamAndListen()
     {
         _duplexStreamingCall = _client.RequestByStream(new CallOptions().WithDeadline(DateTime.MaxValue));
         _clientStreamWriter = _duplexStreamingCall.RequestStream;
@@ -230,25 +229,38 @@ public class GrpcStreamPeer : GrpcPeer
             Logger.LogDebug("write request={requestId} {streamType}-{messageType}", job.StreamMessage.RequestId, job.StreamMessage.StreamType, job.StreamMessage.MessageType);
             await _clientStreamWriter.WriteAsync(job.StreamMessage);
         }
-        catch (RpcException ex)
+        catch (RpcException e)
         {
-            job.SendCallback?.Invoke(HandleRpcException(ex, $"Could not write to stream to {this}: "));
-            await Task.Delay(StreamRecoveryWaitTime);
+            HandleStreamRpcException(e, job);
             return;
         }
 
         job.SendCallback?.Invoke(null);
     }
 
-    private async Task<bool> RebuildStreamAsync()
+    protected virtual async void HandleStreamRpcException(RpcException e, StreamJob job)
     {
-        if (IsStreamBack || !_isComplete) return true;
+        if (await RebuildStreamAsync())
+        {
+            //rebuild and retry
+            await _clientStreamWriter.WriteAsync(job.StreamMessage);
+            return;
+        }
+
+        _isComplete = true; //inform to rebuild next time
+    }
+
+    protected async Task<bool> RebuildStreamAsync()
+    {
+        if (!_isComplete) return true;
         try
         {
-            StartServe();
+            _streamListenTaskTokenSource?.Cancel();
+            BuildStreamAndListen();
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            Logger.LogDebug(e, "rebuild failed, {peer}", this);
             return false;
         }
 
