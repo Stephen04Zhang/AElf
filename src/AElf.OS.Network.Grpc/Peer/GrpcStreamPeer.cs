@@ -18,6 +18,7 @@ using Grpc.Core;
 using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Org.BouncyCastle.Crypto.Engines;
 using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
@@ -108,7 +109,7 @@ public class GrpcStreamPeer : GrpcPeer
             { GrpcConstants.RetryCountMetadataKey, "0" },
         };
         var grpcRequest = new GrpcRequest { ErrorMessage = "handshake failed." };
-        var reply = await RequestAsync(() => StreamRequestAsync(MessageType.HandShake, request, metadata), grpcRequest);
+        var reply = await RequestAsync(() => StreamRequestAsync(MessageType.HandShake, request, metadata), grpcRequest, true);
         return HandshakeReply.Parser.ParseFrom(reply.Message);
     }
 
@@ -267,9 +268,9 @@ public class GrpcStreamPeer : GrpcPeer
         return true;
     }
 
-    protected async Task<TResp> RequestAsync<TResp>(Func<Task<TResp>> func, GrpcRequest request)
+    protected async Task<TResp> RequestAsync<TResp>(Func<Task<TResp>> func, GrpcRequest request, bool skipCheck = false)
     {
-        if (!IsReady || !await RebuildStreamAsync())
+        if (!skipCheck && (!IsReady || !await RebuildStreamAsync()))
             throw new NetworkException($"Dropping request, peer is not ready - {this}.", NetworkExceptionType.NotConnected);
         var recordRequestTime = !string.IsNullOrEmpty(request.MetricName);
         var requestStartTime = TimestampHelper.GetUtcNow();
