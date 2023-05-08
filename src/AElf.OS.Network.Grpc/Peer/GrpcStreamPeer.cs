@@ -121,7 +121,7 @@ public class GrpcStreamPeer : GrpcPeer
         {
             { GrpcConstants.TimeoutMetadataKey, UpdateHandshakeTimeout.ToString() },
         };
-        await RequestAsync(() => StreamRequestAsync(MessageType.ConfirmHandShake, new ConfirmHandshakeRequest(), data), request);
+        await RequestAsync(() => StreamRequestAsync(MessageType.ConfirmHandShake, new ConfirmHandshakeRequest(), data), request, true);
     }
 
     protected override async Task BroadcastBlockAsync(BlockWithTransactions blockWithTransactions)
