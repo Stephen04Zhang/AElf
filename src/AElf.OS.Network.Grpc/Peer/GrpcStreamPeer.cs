@@ -18,7 +18,6 @@ using Grpc.Core;
 using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Org.BouncyCastle.Crypto.Engines;
 using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
@@ -64,7 +63,7 @@ public class GrpcStreamPeer : GrpcPeer
         {
             await _duplexStreamingCall.ResponseStream.ForEachAsync(async req => await
                 _eventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), Info.Pubkey)));
-            Logger.LogDebug("streaming listen end and complete, {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", RemoteEndpoint.ToString(), InboundSessionId.ToHex(), Info.SessionId.ToHex());
+            Logger.LogDebug("streaming listen end and complete, {remoteEndPoint} successful", RemoteEndpoint.ToString());
             _isComplete = true;
         }, tokenSource.Token);
         var handshake = await _handshakeProvider.GetHandshakeAsync();
@@ -72,7 +71,7 @@ public class GrpcStreamPeer : GrpcPeer
         if (!await ProcessHandshakeReplyAsync(handShakeReply, RemoteEndpoint))
         {
             await DisconnectAsync(true);
-            Logger.LogDebug("stream handshake failed, and return {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", RemoteEndpoint.ToString(), InboundSessionId.ToHex(), Info.SessionId.ToHex());
+            Logger.LogDebug("stream handshake failed, and return {remoteEndPoint} successful", RemoteEndpoint.ToString());
             return false;
         }
 
