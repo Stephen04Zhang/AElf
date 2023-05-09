@@ -72,9 +72,9 @@ public class GrpcStreamPeer : GrpcPeer
                 Logger.LogDebug("streaming listen end and complete, {remoteEndPoint} successful", RemoteEndpoint.ToString());
                 _isComplete = true;
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                Logger.LogDebug(e, "err happen while listen {remoteEndPoint}", RemoteEndpoint.ToString());
+                _isComplete = true; // inform to rebuild next time
             }
         }, tokenSource.Token);
         Logger.LogDebug("start stream handshake to {remoteEndPoint}", RemoteEndpoint.ToString());
@@ -244,14 +244,14 @@ public class GrpcStreamPeer : GrpcPeer
         }
         catch (RpcException e)
         {
-            HandleStreamRpcException(e, job);
+            await HandleStreamRpcExceptionAsync(e, job);
             return;
         }
 
         job.SendCallback?.Invoke(null);
     }
 
-    protected virtual async void HandleStreamRpcException(RpcException e, StreamJob job)
+    protected virtual async Task HandleStreamRpcExceptionAsync(RpcException e, StreamJob job)
     {
         if (await RebuildStreamAsync())
         {

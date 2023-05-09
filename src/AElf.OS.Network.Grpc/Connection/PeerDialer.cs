@@ -42,6 +42,7 @@ public class PeerDialer : IPeerDialer
         _streamTaskResourcePool = streamTaskResourcePool;
 
         Logger = NullLogger<PeerDialer>.Instance;
+        EventBus = NullLocalEventBus.Instance;
 
         CreateClientKeyCertificatePair();
     }

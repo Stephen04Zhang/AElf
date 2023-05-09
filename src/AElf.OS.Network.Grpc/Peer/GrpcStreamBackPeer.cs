@@ -56,9 +56,10 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
         return Task.FromResult(true);
     }
 
-    protected override void HandleStreamRpcException(RpcException e, StreamJob job)
+    protected override Task HandleStreamRpcExceptionAsync(RpcException e, StreamJob job)
     {
         job.SendCallback?.Invoke(HandleRpcException(e, $"Could not write to stream to {this}: "));
+        return Task.CompletedTask;
     }
 
     public override NetworkException HandleRpcException(RpcException exception, string errorMessage)
