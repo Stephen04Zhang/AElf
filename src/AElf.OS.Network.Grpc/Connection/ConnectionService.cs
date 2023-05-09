@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using AElf.Kernel;
 using AElf.OS.Network.Application;
 using AElf.OS.Network.Events;
 using AElf.OS.Network.Grpc.Helpers;
@@ -191,7 +192,7 @@ public class ConnectionService : IConnectionService
 
         if (handshake.HandshakeData.NodeVersion.GreaterThanSupportStreamMinVersion())
         {
-            Logger.LogDebug("receive nodeversion>=1.4.0 handshake, will upgrade to stream, remote={endpoint}", endpoint.Host);
+            Logger.LogDebug("receive nodeversion>={version} handshake, will upgrade to stream, remote={endpoint}", KernelConstants.SupportStreamMinVersion, endpoint.Host);
             return new HandshakeReply { Handshake = await _handshakeProvider.GetHandshakeAsync(), Error = HandshakeError.HandshakeOk };
         }
 

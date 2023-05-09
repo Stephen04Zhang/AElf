@@ -54,7 +54,7 @@ public class GrpcStreamPeer : GrpcPeer
     }
 
 
-    public async Task<bool> BuildStreamAndListen()
+    public async Task<bool> BuildStreamAndListenAsync()
     {
         _duplexStreamingCall = _client.RequestByStream(new CallOptions().WithDeadline(DateTime.MaxValue));
         _clientStreamWriter = _duplexStreamingCall.RequestStream;
@@ -256,7 +256,7 @@ public class GrpcStreamPeer : GrpcPeer
         try
         {
             _streamListenTaskTokenSource?.Cancel();
-            BuildStreamAndListen();
+            BuildStreamAndListenAsync();
         }
         catch (Exception e)
         {

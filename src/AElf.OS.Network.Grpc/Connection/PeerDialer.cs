@@ -240,7 +240,7 @@ public class PeerDialer : IPeerDialer
                     { GrpcConstants.PubkeyMetadataKey, nodePubkey },
                     { GrpcConstants.PeerInfoMetadataKey, connectionInfo.ToString() }
                 }, EventBus, _handshakeProvider);
-            var success = await streamPeer.BuildStreamAndListen();
+            var success = await streamPeer.BuildStreamAndListenAsync();
             return success ? streamPeer : null;
         }
         catch (Exception e)
