@@ -9,6 +9,7 @@ using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Org.BouncyCastle.Asn1.Cms;
 using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
@@ -71,6 +72,7 @@ public class GrpcServerService : PeerService.PeerServiceBase
         {
             await requestStream.ForEachAsync(async req =>
             {
+                var start = DateTimeOffset.UtcNow;
                 Logger.LogDebug("receive request={requestId} {streamType}-{messageType}", req.RequestId, req.StreamType, req.MessageType);
                 if (req.MessageType == MessageType.HandShake)
                 {
@@ -89,6 +91,8 @@ public class GrpcServerService : PeerService.PeerServiceBase
                 {
                     await _streamService.ProcessStreamRequestAsync(req, context);
                 }
+
+                Logger.LogDebug("finish request={requestId} {streamType}-{messageType}, time cost={delta}", req.RequestId, req.StreamType, req.MessageType, DateTimeOffset.UtcNow.Subtract(start).TotalMilliseconds);
             });
         }
         catch (Exception e)

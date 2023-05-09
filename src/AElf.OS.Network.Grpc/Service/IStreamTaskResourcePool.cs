@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Volo.Abp.DependencyInjection;
 
 namespace AElf.OS.Network.Grpc;
@@ -14,29 +16,32 @@ public interface IStreamTaskResourcePool
 
 public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDependency
 {
-    private readonly ConcurrentDictionary<string, Tuple<MessageType, TaskCompletionSource<StreamMessage>>> _promisePool;
+    private readonly ConcurrentDictionary<string, StreamContext> _promisePool;
+    public ILogger<StreamTaskResourcePool> Logger { get; set; }
 
     public StreamTaskResourcePool()
     {
-        _promisePool = new ConcurrentDictionary<string, Tuple<MessageType, TaskCompletionSource<StreamMessage>>>();
+        _promisePool = new ConcurrentDictionary<string, StreamContext>();
+        Logger = NullLogger<StreamTaskResourcePool>.Instance;
     }
 
     public Task RegistryTaskPromiseAsync(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise)
     {
-        _promisePool[requestId] = new Tuple<MessageType, TaskCompletionSource<StreamMessage>>(messageType, promise);
+        _promisePool[requestId] = new StreamContext(messageType, promise);
         return Task.CompletedTask;
     }
 
     public void TrySetResult(string requestId, StreamMessage reply)
     {
         AssertContains(requestId);
-        var promise = _promisePool[requestId];
-        if (promise.Item1 != reply.MessageType)
+        var request = _promisePool[requestId];
+        if (request.MessageType != reply.MessageType)
         {
-            throw new Exception($"invalid reply type set {reply.StreamType} expect {promise.Item1}");
+            throw new Exception($"invalid reply type set {reply.StreamType} expect {request.MessageType}");
         }
 
-        promise.Item2.TrySetResult(reply);
+        Logger.LogDebug("receive {requestId} {streamType}-{messageType}, cost={cost}", requestId, reply.StreamType, request.MessageType, DateTimeOffset.UtcNow.Subtract(request.StartTime).TotalMilliseconds);
+        request.Promise.TrySetResult(reply);
     }
 
     public async Task<StreamMessage> GetResultAsync(TaskCompletionSource<StreamMessage> promise, string requestId, int timeOut)
@@ -62,5 +67,19 @@ public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDepende
         {
             throw new Exception($"{requestId} not found");
         }
+    }
+}
+
+public class StreamContext
+{
+    public readonly MessageType MessageType;
+    public readonly TaskCompletionSource<StreamMessage> Promise;
+    public readonly DateTimeOffset StartTime;
+
+    public StreamContext(MessageType messageType, TaskCompletionSource<StreamMessage> promise)
+    {
+        MessageType = messageType;
+        Promise = promise;
+        StartTime = DateTimeOffset.UtcNow;
     }
 }

@@ -40,7 +40,6 @@ public class PeerDialer : IPeerDialer
         _accountService = accountService;
         _handshakeProvider = handshakeProvider;
         _streamTaskResourcePool = streamTaskResourcePool;
-        EventBus = NullLocalEventBus.Instance;
 
         Logger = NullLogger<PeerDialer>.Instance;
 
@@ -239,7 +238,7 @@ public class PeerDialer : IPeerDialer
                 {
                     { GrpcConstants.PubkeyMetadataKey, nodePubkey },
                     { GrpcConstants.PeerInfoMetadataKey, connectionInfo.ToString() }
-                }, EventBus, _handshakeProvider);
+                }, EventBus, _handshakeProvider, Logger);
             var success = await streamPeer.BuildStreamAndListenAsync();
             return success ? streamPeer : null;
         }
