@@ -24,8 +24,8 @@ namespace AElf.OS.Network.Grpc;
 
 public class GrpcStreamPeer : GrpcPeer
 {
-    private const int StreamWaitTime = 500;
-    private ILocalEventBus _eventBus;
+    private const int StreamWaitTime = 1000;
+    private ILocalEventBus EventBus;
     private AsyncDuplexStreamingCall<StreamMessage, StreamMessage> _duplexStreamingCall;
     private CancellationTokenSource _streamListenTaskTokenSource;
     private IAsyncStreamWriter<StreamMessage> _clientStreamWriter;
@@ -47,7 +47,7 @@ public class GrpcStreamPeer : GrpcPeer
         _clientStreamWriter = clientStreamWriter;
         _streamTaskResourcePool = streamTaskResourcePool;
         _peerMeta = peerMeta;
-        _eventBus = eventBus;
+        EventBus = eventBus;
         _handshakeProvider = handshakeProvider;
         _sendStreamJobs = new ActionBlock<StreamJob>(WriteStreamJobAsync);
         Logger = NullLogger<GrpcStreamPeer>.Instance;
@@ -62,7 +62,7 @@ public class GrpcStreamPeer : GrpcPeer
         Task.Run(async () =>
         {
             await _duplexStreamingCall.ResponseStream.ForEachAsync(async req => await
-                _eventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), Info.Pubkey)));
+                EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), Info.Pubkey)));
             Logger.LogDebug("streaming listen end and complete, {remoteEndPoint} successful", RemoteEndpoint.ToString());
             _isComplete = true;
         }, tokenSource.Token);
@@ -101,7 +101,7 @@ public class GrpcStreamPeer : GrpcPeer
         await base.DisconnectAsync(gracefulDisconnect);
     }
 
-    public async Task<HandshakeReply> HandShakeAsync(HandshakeRequest request)
+    private async Task<HandshakeReply> HandShakeAsync(HandshakeRequest request)
     {
         var metadata = new Metadata
         {
