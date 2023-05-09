@@ -16,7 +16,7 @@ public class HandshakeProvider : IHandshakeProvider
     private readonly IAccountService _accountService;
     private readonly IBlockchainService _blockchainService;
     private readonly NetworkOptions _networkOptions;
-    public static readonly string NodeVersion = typeof(CoreOSAElfModule).Assembly.GetName().Version?.ToString();
+    private static readonly string NodeVersion = typeof(CoreOSAElfModule).Assembly.GetName().Version?.ToString();
 
     public HandshakeProvider(IAccountService accountService, IBlockchainService blockchainService,
         IOptionsSnapshot<NetworkOptions> networkOptions)
@@ -70,13 +70,13 @@ public class HandshakeProvider : IHandshakeProvider
         var chainId = _blockchainService.GetChainId();
         if (handshake.HandshakeData.ChainId != chainId)
         {
-            Logger.LogDebug($"Chain is is incorrect: {handshake.HandshakeData.ChainId}.");
+            Logger.LogDebug($"Chain is incorrect: {handshake.HandshakeData.ChainId}.");
             return HandshakeValidationResult.InvalidChainId;
         }
 
         if (handshake.HandshakeData.Version != KernelConstants.ProtocolVersion)
         {
-            Logger.LogDebug($"Version is is incorrect: {handshake.HandshakeData.Version}.");
+            Logger.LogDebug($"Version is incorrect: {handshake.HandshakeData.Version}.");
             return HandshakeValidationResult.InvalidVersion;
         }
 
