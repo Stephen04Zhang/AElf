@@ -25,17 +25,15 @@ public class StreamService : IStreamService, ISingletonDependency
     private readonly IStreamTaskResourcePool _streamTaskResourcePool;
     private readonly ITaskQueueManager _taskQueueManager;
     private readonly Dictionary<MessageType, IStreamMethod> _streamMethods;
-    private readonly IPeerDialer _peerDialer;
 
 
     public StreamService(IConnectionService connectionService, IStreamTaskResourcePool streamTaskResourcePool, ITaskQueueManager taskQueueManager,
-        IEnumerable<IStreamMethod> streamMethods, IPeerDialer peerDialer)
+        IEnumerable<IStreamMethod> streamMethods)
     {
         Logger = NullLogger<StreamService>.Instance;
         _connectionService = connectionService;
         _streamTaskResourcePool = streamTaskResourcePool;
         _taskQueueManager = taskQueueManager;
-        _peerDialer = peerDialer;
         _streamMethods = streamMethods.ToDictionary(x => x.Method, y => y);
     }
 
@@ -134,7 +132,7 @@ public class StreamService : IStreamService, ISingletonDependency
         if (peer.IsReady) // peer recovered already
             return;
         var success = await peer.TryRecoverAsync();
-        success = success && peer is GrpcStreamPeer streamPeer && await _peerDialer.BuildStreamForPeerAsync(streamPeer);
+        success = success && peer is GrpcStreamPeer streamPeer && await _connectionService.BuildStreamForPeerAsync(streamPeer);
 
         if (!success) await _connectionService.TrySchedulePeerReconnectionAsync(peer);
     }
