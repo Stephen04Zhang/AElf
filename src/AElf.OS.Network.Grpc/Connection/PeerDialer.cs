@@ -17,7 +17,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Org.BouncyCastle.X509;
-using Volo.Abp.EventBus.Local;
 using Volo.Abp.Threading;
 
 namespace AElf.OS.Network.Grpc;
@@ -32,7 +31,6 @@ public class PeerDialer : IPeerDialer
     private readonly IHandshakeProvider _handshakeProvider;
     private KeyCertificatePair _clientKeyCertificatePair;
     private IStreamTaskResourcePool _streamTaskResourcePool;
-    public ILocalEventBus EventBus { get; set; }
 
     public PeerDialer(IAccountService accountService,
         IHandshakeProvider handshakeProvider, IStreamTaskResourcePool streamTaskResourcePool)
@@ -42,7 +40,6 @@ public class PeerDialer : IPeerDialer
         _streamTaskResourcePool = streamTaskResourcePool;
 
         Logger = NullLogger<PeerDialer>.Instance;
-        EventBus = NullLocalEventBus.Instance;
 
         CreateClientKeyCertificatePair();
     }
@@ -239,7 +236,7 @@ public class PeerDialer : IPeerDialer
                 {
                     { GrpcConstants.PubkeyMetadataKey, nodePubkey },
                     { GrpcConstants.PeerInfoMetadataKey, connectionInfo.ToString() }
-                }, EventBus, _handshakeProvider, Logger);
+                }, Logger);
             var success = await streamPeer.BuildStreamAndListenAsync();
             return success ? streamPeer : null;
         }

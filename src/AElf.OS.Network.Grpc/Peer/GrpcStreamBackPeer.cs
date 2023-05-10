@@ -13,7 +13,7 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
     public GrpcStreamBackPeer(DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo,
         IAsyncStreamWriter<StreamMessage> clientStreamWriter, IStreamTaskResourcePool streamTaskResourcePool,
         Dictionary<string, string> peerMeta)
-        : base(null, remoteEndpoint, peerConnectionInfo, clientStreamWriter, streamTaskResourcePool, peerMeta, null, null, null)
+        : base(null, remoteEndpoint, peerConnectionInfo, clientStreamWriter, streamTaskResourcePool, peerMeta, null)
     {
     }
 

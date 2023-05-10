@@ -8,7 +8,6 @@ using System.Threading.Tasks.Dataflow;
 using AElf.CSharp.Core.Extension;
 using AElf.Kernel;
 using AElf.OS.Network.Application;
-using AElf.OS.Network.Events;
 using AElf.OS.Network.Grpc.Helpers;
 using AElf.OS.Network.Protocol;
 using AElf.OS.Network.Protocol.Types;
@@ -17,18 +16,15 @@ using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
-using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
 
 public class GrpcStreamPeer : GrpcPeer
 {
     private const int StreamWaitTime = 1000;
-    private ILocalEventBus EventBus;
     private AsyncDuplexStreamingCall<StreamMessage, StreamMessage> _duplexStreamingCall;
     private CancellationTokenSource _streamListenTaskTokenSource;
     private IAsyncStreamWriter<StreamMessage> _clientStreamWriter;
-    private readonly IHandshakeProvider _handshakeProvider;
 
     private readonly IStreamTaskResourcePool _streamTaskResourcePool;
     private readonly Dictionary<string, string> _peerMeta;
@@ -39,15 +35,12 @@ public class GrpcStreamPeer : GrpcPeer
 
     public GrpcStreamPeer(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo peerConnectionInfo,
         IAsyncStreamWriter<StreamMessage> clientStreamWriter,
-        IStreamTaskResourcePool streamTaskResourcePool, Dictionary<string, string> peerMeta,
-        ILocalEventBus eventBus, IHandshakeProvider handshakeProvider, ILogger<PeerDialer> Logger) : base(client,
+        IStreamTaskResourcePool streamTaskResourcePool, Dictionary<string, string> peerMeta, ILogger<PeerDialer> Logger) : base(client,
         remoteEndpoint, peerConnectionInfo)
     {
         _clientStreamWriter = clientStreamWriter;
         _streamTaskResourcePool = streamTaskResourcePool;
         _peerMeta = peerMeta;
-        EventBus = eventBus;
-        _handshakeProvider = handshakeProvider;
         _sendStreamJobs = new ActionBlock<StreamJob>(WriteStreamJobAsync);
         this.Logger = Logger;
     }
@@ -67,7 +60,7 @@ public class GrpcStreamPeer : GrpcPeer
                 {
                     var reply = StreamMessage.Parser.ParseFrom(req.ToByteString());
                     Logger.LogDebug("receive {requestid}", reply.RequestId);
-                    await EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), Info.Pubkey));
+                    await _streamTaskResourcePool.PublishAsync(req, Info.Pubkey);
                 });
                 Logger.LogDebug("streaming listen end and complete, {remoteEndPoint} successful", RemoteEndpoint.ToString());
                 _isComplete = true;
@@ -78,7 +71,7 @@ public class GrpcStreamPeer : GrpcPeer
             }
         }, tokenSource.Token);
         Logger.LogDebug("start stream handshake to {remoteEndPoint}", RemoteEndpoint.ToString());
-        var handshake = await _handshakeProvider.GetHandshakeAsync();
+        var handshake = await _streamTaskResourcePool.GetHandshakeAsync();
         var handShakeReply = await HandShakeAsync(new HandshakeRequest { Handshake = handshake });
         if (!await ProcessHandshakeReplyAsync(handShakeReply, RemoteEndpoint))
         {
@@ -363,7 +356,7 @@ public class GrpcStreamPeer : GrpcPeer
             return false;
         }
 
-        if (await _handshakeProvider.ValidateHandshakeAsync(handshakeReply.Handshake) ==
+        if (await _streamTaskResourcePool.ValidateHandshakeAsync(handshakeReply.Handshake) ==
             HandshakeValidationResult.Ok) return true;
         Logger.LogWarning("Connect error: {remoteEndpoint} {handshakeReply}.", remoteEndpoint, handshakeReply);
         return false;

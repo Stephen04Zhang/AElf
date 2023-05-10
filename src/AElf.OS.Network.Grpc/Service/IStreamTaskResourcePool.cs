@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using AElf.OS.Network.Events;
+using AElf.OS.Network.Protocol;
+using Google.Protobuf;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Volo.Abp.DependencyInjection;
+using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
 
@@ -12,16 +16,23 @@ public interface IStreamTaskResourcePool
     Task RegistryTaskPromiseAsync(string requestId, MessageType messageType, TaskCompletionSource<StreamMessage> promise);
     void TrySetResult(string requestId, StreamMessage reply);
     Task<StreamMessage> GetResultAsync(TaskCompletionSource<StreamMessage> promise, string requestId, int timeOut);
+    Task PublishAsync(StreamMessage request, string pubkey);
+    Task<Handshake> GetHandshakeAsync();
+    Task<HandshakeValidationResult> ValidateHandshakeAsync(Handshake handshake);
 }
 
 public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDependency
 {
+    private readonly IHandshakeProvider _handshakeProvider;
     private readonly ConcurrentDictionary<string, StreamContext> _promisePool;
+    public ILocalEventBus EventBus { get; set; }
     public ILogger<StreamTaskResourcePool> Logger { get; set; }
 
-    public StreamTaskResourcePool()
+    public StreamTaskResourcePool(IHandshakeProvider handshakeProvider)
     {
+        _handshakeProvider = handshakeProvider;
         _promisePool = new ConcurrentDictionary<string, StreamContext>();
+        EventBus = NullLocalEventBus.Instance;
         Logger = NullLogger<StreamTaskResourcePool>.Instance;
     }
 
@@ -67,6 +78,21 @@ public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDepende
         {
             throw new Exception($"{requestId} not found");
         }
+    }
+
+    public async Task PublishAsync(StreamMessage request, string pubkey)
+    {
+        await EventBus.PublishAsync(new StreamMessageReceivedEvent(request.ToByteString(), pubkey));
+    }
+
+    public async Task<Handshake> GetHandshakeAsync()
+    {
+        return await _handshakeProvider.GetHandshakeAsync();
+    }
+
+    public async Task<HandshakeValidationResult> ValidateHandshakeAsync(Handshake handshake)
+    {
+        return await _handshakeProvider.ValidateHandshakeAsync(handshake);
     }
 }
 
