@@ -18,4 +18,5 @@ public interface IConnectionService
     Task DisconnectPeersAsync(bool gracefulDisconnect);
     Task<bool> CheckEndpointAvailableAsync(DnsEndPoint endpoint);
     Task RemovePeerAsync(string pubkey);
+    Task<bool> BuildStreamForPeerAsync(IPeer peer);
 }

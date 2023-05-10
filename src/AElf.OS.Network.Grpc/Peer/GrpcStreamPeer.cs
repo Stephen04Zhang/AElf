@@ -270,4 +270,9 @@ public class GrpcStreamPeer : GrpcPeer
         var t = header.Get(GrpcConstants.TimeoutMetadataKey)?.Value;
         return t == null ? StreamWaitTime : int.Parse(t);
     }
+
+    public override async Task<bool> TryRecoverAsync()
+    {
+        return IsReady || await base.TryRecoverAsync();
+    }
 }

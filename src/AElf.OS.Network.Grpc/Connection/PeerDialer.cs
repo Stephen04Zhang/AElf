@@ -256,7 +256,7 @@ public class PeerDialer : IPeerDialer
         }
     }
 
-    public async Task<bool> BuildStreamForPeerAsync(GrpcStreamPeer streamPeer, AsyncDuplexStreamingCall<StreamMessage, StreamMessage> call)
+    public async Task<bool> BuildStreamForPeerAsync(GrpcStreamPeer streamPeer, AsyncDuplexStreamingCall<StreamMessage, StreamMessage> call = null)
     {
         call ??= streamPeer.BuildCall();
         var tokenSource = new CancellationTokenSource();

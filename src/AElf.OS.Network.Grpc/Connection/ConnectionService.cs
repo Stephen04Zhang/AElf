@@ -347,6 +347,12 @@ public class ConnectionService : IConnectionService
             await peer.DisconnectAsync(false);
     }
 
+    public async Task<bool> BuildStreamForPeerAsync(IPeer peer)
+    {
+        if (peer is GrpcStreamPeer streamPeer) return await _peerDialer.BuildStreamForPeerAsync(streamPeer);
+        return await Task.FromResult(false);
+    }
+
     public async Task<bool> CheckEndpointAvailableAsync(DnsEndPoint endpoint)
     {
         return await _peerDialer.CheckEndpointAvailableAsync(endpoint);

@@ -134,10 +134,7 @@ public class StreamService : IStreamService, ISingletonDependency
         if (peer.IsReady) // peer recovered already
             return;
         var success = await peer.TryRecoverAsync();
-        if (success && peer is GrpcStreamPeer)
-        {
-            success = await _peerDialer.BuildStreamForPeerAsync((GrpcStreamPeer)peer, null);
-        }
+        success = success && peer is GrpcStreamPeer streamPeer && await _peerDialer.BuildStreamForPeerAsync(streamPeer);
 
         if (!success) await _connectionService.TrySchedulePeerReconnectionAsync(peer);
     }

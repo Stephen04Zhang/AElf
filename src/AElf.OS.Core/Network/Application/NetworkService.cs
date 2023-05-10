@@ -398,7 +398,7 @@ public class NetworkService : INetworkService, ISingletonDependency
             return;
 
         var success = await peer.TryRecoverAsync();
-
+        success = success && await _networkServer.BuildStreamForPeerAsync(peer);
         if (!success)
             await _networkServer.TrySchedulePeerReconnectionAsync(peer);
     }

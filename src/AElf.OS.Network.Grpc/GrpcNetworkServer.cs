@@ -188,4 +188,9 @@ public class GrpcNetworkServer : IAElfNetworkServer, ISingletonDependency
 
         await Task.WhenAll(taskList.ToArray<Task>());
     }
+
+    public async Task<bool> BuildStreamForPeerAsync(IPeer peer)
+    {
+        return await _connectionService.BuildStreamForPeerAsync(peer);
+    }
 }
