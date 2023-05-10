@@ -16,6 +16,7 @@ using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
+using Volo.Abp.EventBus.Local;
 
 namespace AElf.OS.Network.Grpc;
 

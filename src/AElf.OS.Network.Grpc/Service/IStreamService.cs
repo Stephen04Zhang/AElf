@@ -14,7 +14,7 @@ namespace AElf.OS.Network.Grpc;
 
 public interface IStreamService
 {
-    Task ProcessStreamReplyAsync(ByteString reply, string clientPubKey);
+    Task ProcessStreamReplyAsync(StreamMessage request, string clientPubKey);
     Task ProcessStreamRequestAsync(StreamMessage request, ServerCallContext context);
 }
 
@@ -46,9 +46,8 @@ public class StreamService : IStreamService, ISingletonDependency
         await DoProcessAsync(new StreamMessageMetaStreamContext(request.Meta), request, streamPeer);
     }
 
-    public async Task ProcessStreamReplyAsync(ByteString reply, string clientPubKey)
+    public async Task ProcessStreamReplyAsync(StreamMessage message, string clientPubKey)
     {
-        var message = StreamMessage.Parser.ParseFrom(reply);
         Logger.LogInformation("receive {requestId} {streamType} {meta}", message.RequestId, message.StreamType, message.Meta);
 
         var peer = _connectionService.GetPeerByPubkey(clientPubKey);

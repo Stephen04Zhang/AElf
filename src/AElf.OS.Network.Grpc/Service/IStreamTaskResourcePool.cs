@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.EventBus.Local;
+using Volo.Abp.Uow;
 
 namespace AElf.OS.Network.Grpc;
 
@@ -44,8 +45,11 @@ public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDepende
 
     public void TrySetResult(string requestId, StreamMessage reply)
     {
-        AssertContains(requestId);
-        var request = _promisePool[requestId];
+        if (!_promisePool.TryGetValue(requestId, out var request))
+        {
+            throw new Exception($"{requestId} not found");
+        }
+
         if (request.MessageType != reply.MessageType)
         {
             throw new Exception($"invalid reply type set {reply.StreamType} expect {request.MessageType}");
@@ -72,17 +76,9 @@ public class StreamTaskResourcePool : IStreamTaskResourcePool, ISingletonDepende
         }
     }
 
-    private void AssertContains(string requestId)
-    {
-        if (!_promisePool.ContainsKey(requestId))
-        {
-            throw new Exception($"{requestId} not found");
-        }
-    }
-
     public async Task PublishAsync(StreamMessage request, string pubkey)
     {
-        await EventBus.PublishAsync(new StreamMessageReceivedEvent(request.ToByteString(), pubkey));
+        await EventBus.PublishAsync(new StreamMessageReceivedEvent(request.ToByteString(), pubkey), false);
     }
 
     public async Task<Handshake> GetHandshakeAsync()
