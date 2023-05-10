@@ -244,33 +244,8 @@ public class PeerDialer : IPeerDialer
                     { GrpcConstants.PubkeyMetadataKey, nodePubkey },
                     { GrpcConstants.PeerInfoMetadataKey, connectionInfo.ToString() }
                 });
-            var tokenSource = new CancellationTokenSource();
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await call.ResponseStream.ForEachAsync(async req => await
-                        EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), streamPeer.Info.Pubkey), false));
-                    Logger.LogDebug("listen end and complete {remoteEndPoint}", remoteEndpoint.ToString());
-                }
-                catch (Exception e)
-                {
-                    Logger.LogDebug(e, "listen err {remoteEndPoint}", remoteEndpoint.ToString());
-                }
-            }, tokenSource.Token);
-            streamPeer.StartServe(tokenSource);
-            var handshake = await _handshakeProvider.GetHandshakeAsync();
-            var handShakeReply = await streamPeer.HandShakeAsync(new HandshakeRequest { Handshake = handshake });
-            if (!await ProcessHandshakeReplyAsync(handShakeReply, remoteEndpoint))
-            {
-                await streamPeer.DisconnectAsync(true);
-                return null;
-            }
-
-            streamPeer.InboundSessionId = handshake.SessionId.ToByteArray();
-            streamPeer.Info.SessionId = handShakeReply.Handshake.SessionId.ToByteArray();
-            Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", remoteEndpoint.ToString(), streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex());
-            return streamPeer;
+            var success = await BuildStreamForPeerAsync(streamPeer, call);
+            return success ? streamPeer : null;
         }
         catch (Exception e)
         {
@@ -279,6 +254,38 @@ public class PeerDialer : IPeerDialer
                 await client.Channel.ShutdownAsync();
             throw;
         }
+    }
+
+    public async Task<bool> BuildStreamForPeerAsync(GrpcStreamPeer streamPeer, AsyncDuplexStreamingCall<StreamMessage, StreamMessage> call)
+    {
+        call ??= streamPeer.BuildCall();
+        var tokenSource = new CancellationTokenSource();
+        Task.Run(async () =>
+        {
+            try
+            {
+                await call.ResponseStream.ForEachAsync(async req => await
+                    EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), streamPeer.Info.Pubkey), false));
+                Logger.LogDebug("listen end and complete {remoteEndPoint}", streamPeer.RemoteEndpoint.ToString());
+            }
+            catch (Exception e)
+            {
+                Logger.LogDebug(e, "listen err {remoteEndPoint}", streamPeer.RemoteEndpoint.ToString());
+            }
+        }, tokenSource.Token);
+        streamPeer.StartServe(tokenSource);
+        var handshake = await _handshakeProvider.GetHandshakeAsync();
+        var handShakeReply = await streamPeer.HandShakeAsync(new HandshakeRequest { Handshake = handshake });
+        if (!await ProcessHandshakeReplyAsync(handShakeReply, streamPeer.RemoteEndpoint))
+        {
+            await streamPeer.DisconnectAsync(true);
+            return false;
+        }
+
+        streamPeer.InboundSessionId = handshake.SessionId.ToByteArray();
+        streamPeer.Info.SessionId = handShakeReply.Handshake.SessionId.ToByteArray();
+        Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", streamPeer.RemoteEndpoint.ToString(), streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex());
+        return true;
     }
 
 

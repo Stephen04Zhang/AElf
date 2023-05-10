@@ -39,7 +39,7 @@ public class GrpcPeer : IPeer
     private const int QueuedBlockTimeout = 100_000;
 
     private readonly Channel _channel;
-    private readonly PeerService.PeerServiceClient _client;
+    protected readonly PeerService.PeerServiceClient _client;
     private readonly BoundedExpirationCache _knownBlockCache;
 
     private readonly BoundedExpirationCache _knownTransactionCache;

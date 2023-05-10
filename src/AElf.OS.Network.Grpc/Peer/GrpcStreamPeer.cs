@@ -21,9 +21,9 @@ namespace AElf.OS.Network.Grpc;
 public class GrpcStreamPeer : GrpcPeer
 {
     private const int StreamWaitTime = 500;
-    private readonly AsyncDuplexStreamingCall<StreamMessage, StreamMessage> _duplexStreamingCall;
+    private AsyncDuplexStreamingCall<StreamMessage, StreamMessage> _duplexStreamingCall;
     private CancellationTokenSource _streamListenTaskTokenSource;
-    private readonly IAsyncStreamWriter<StreamMessage> _clientStreamWriter;
+    private IAsyncStreamWriter<StreamMessage> _clientStreamWriter;
 
     private readonly IStreamTaskResourcePool _streamTaskResourcePool;
     private readonly Dictionary<string, string> _peerMeta;
@@ -45,6 +45,12 @@ public class GrpcStreamPeer : GrpcPeer
         Logger = NullLogger<GrpcStreamPeer>.Instance;
     }
 
+    public AsyncDuplexStreamingCall<StreamMessage, StreamMessage> BuildCall()
+    {
+        _duplexStreamingCall = _client.RequestByStream(new CallOptions().WithDeadline(DateTime.MaxValue));
+        _clientStreamWriter = _duplexStreamingCall.RequestStream;
+        return _duplexStreamingCall;
+    }
 
     public void StartServe(CancellationTokenSource listenTaskTokenSource)
     {
@@ -211,16 +217,12 @@ public class GrpcStreamPeer : GrpcPeer
         }
         catch (RpcException e)
         {
-            var networkException = HandleRpcException(e, request.ErrorMessage);
-            if (networkException.ExceptionType == NetworkExceptionType.Unrecoverable)
-                await DisconnectAsync(true);
-            throw;
+            throw HandleRpcException(e, request.ErrorMessage);
         }
-        catch (Exception e)
+        catch (Exception)
         {
-            if (e is TimeoutException or InvalidOperationException)
-                await DisconnectAsync(true);
-            throw;
+            // if (e is TimeoutException or InvalidOperationException)
+            throw HandleRpcException(new RpcException(new Status(StatusCode.Unknown, request.ErrorMessage), request.ErrorMessage), request.ErrorMessage);
         }
     }
 

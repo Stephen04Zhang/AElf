@@ -10,4 +10,5 @@ public interface IPeerDialer
     Task<GrpcPeer> DialBackPeerAsync(DnsEndPoint remoteEndpoint, Handshake handshake);
     Task<GrpcPeer> DialBackPeerByStreamAsync(DnsEndPoint remoteEndPoint, IAsyncStreamWriter<StreamMessage> responseStream, Handshake handshake);
     Task<bool> CheckEndpointAvailableAsync(DnsEndPoint remoteEndpoint);
+    Task<bool> BuildStreamForPeerAsync(GrpcStreamPeer streamPeer, AsyncDuplexStreamingCall<StreamMessage, StreamMessage> call);
 }
