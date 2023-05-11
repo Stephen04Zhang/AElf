@@ -13,6 +13,7 @@ using AElf.OS.Network.Protocol;
 using AElf.OS.Network.Protocol.Types;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -29,14 +30,15 @@ public class PeerDialer : IPeerDialer
 {
     private readonly IAccountService _accountService;
     private readonly IHandshakeProvider _handshakeProvider;
-
     private KeyCertificatePair _clientKeyCertificatePair;
+    private IStreamTaskResourcePool _streamTaskResourcePool;
 
     public PeerDialer(IAccountService accountService,
-        IHandshakeProvider handshakeProvider)
+        IHandshakeProvider handshakeProvider, IStreamTaskResourcePool streamTaskResourcePool)
     {
         _accountService = accountService;
         _handshakeProvider = handshakeProvider;
+        _streamTaskResourcePool = streamTaskResourcePool;
 
         Logger = NullLogger<PeerDialer>.Instance;
 
@@ -63,23 +65,13 @@ public class PeerDialer : IPeerDialer
         var handshake = await _handshakeProvider.GetHandshakeAsync();
         var handshakeReply = await CallDoHandshakeAsync(client, remoteEndpoint, handshake);
 
-        // verify handshake
-        if (handshakeReply.Error != HandshakeError.HandshakeOk)
+        if (!await ProcessHandshakeReplyAsync(handshakeReply, remoteEndpoint))
         {
-            Logger.LogWarning($"Handshake error: {remoteEndpoint} {handshakeReply.Error}.");
             await client.Channel.ShutdownAsync();
             return null;
         }
 
-        if (await _handshakeProvider.ValidateHandshakeAsync(handshakeReply.Handshake) !=
-            HandshakeValidationResult.Ok)
-        {
-            Logger.LogWarning($"Connect error: {remoteEndpoint} {handshakeReply}.");
-            await client.Channel.ShutdownAsync();
-            return null;
-        }
-
-        var peer = new GrpcPeer(client, remoteEndpoint, new PeerConnectionInfo
+        var connectionInfo = new PeerConnectionInfo
         {
             Pubkey = handshakeReply.Handshake.HandshakeData.Pubkey.ToHex(),
             ConnectionTime = TimestampHelper.GetUtcNow(),
@@ -87,12 +79,66 @@ public class PeerDialer : IPeerDialer
             SessionId = handshakeReply.Handshake.SessionId.ToByteArray(),
             IsInbound = false,
             NodeVersion = handshakeReply.Handshake.HandshakeData.NodeVersion
-        });
+        };
+        GrpcPeer peer;
 
+        if (UpgradeToStream(handshake, handshakeReply.Handshake))
+        {
+            peer = await DailStreamPeerAsync(client, remoteEndpoint, connectionInfo);
+            if (peer == null) return peer;
+        }
+        else
+        {
+            peer = new GrpcPeer(client, remoteEndpoint, connectionInfo);
+            peer.InboundSessionId = handshake.SessionId.ToByteArray();
+        }
+
+
+        Logger.LogDebug("peer sessionId {InboundSessionId} {sessionId}", peer.InboundSessionId.ToHex(), connectionInfo.SessionId.ToHex());
         peer.UpdateLastReceivedHandshake(handshakeReply.Handshake);
-
-        peer.InboundSessionId = handshake.SessionId.ToByteArray();
         peer.UpdateLastSentHandshake(handshake);
+        return peer;
+    }
+
+    private async Task<bool> ProcessHandshakeReplyAsync(HandshakeReply handshakeReply, DnsEndPoint remoteEndpoint)
+    {
+        // verify handshake
+        if (handshakeReply.Error != HandshakeError.HandshakeOk)
+        {
+            Logger.LogWarning("Handshake error: {remoteEndpoint} {Error}.", remoteEndpoint, handshakeReply.Error);
+
+            return false;
+        }
+
+        if (await _handshakeProvider.ValidateHandshakeAsync(handshakeReply.Handshake) ==
+            HandshakeValidationResult.Ok) return true;
+        Logger.LogWarning("Connect error: {remoteEndpoint} {handshakeReply}.", remoteEndpoint, handshakeReply);
+        return false;
+    }
+
+
+    public async Task<GrpcPeer> DialBackPeerByStreamAsync(DnsEndPoint remoteEndpoint, IAsyncStreamWriter<StreamMessage> responseStream, Handshake handshake)
+    {
+        Logger.LogWarning("receive stream ping reply");
+        var info = new PeerConnectionInfo
+        {
+            Pubkey = handshake.HandshakeData.Pubkey.ToHex(),
+            ConnectionTime = TimestampHelper.GetUtcNow(),
+            SessionId = handshake.SessionId.ToByteArray(),
+            ProtocolVersion = handshake.HandshakeData.Version,
+            IsInbound = true,
+            NodeVersion = handshake.HandshakeData.NodeVersion
+        };
+        var nodePubkey = (await _accountService.GetPublicKeyAsync()).ToHex();
+        var meta = new Dictionary<string, string>()
+        {
+            { GrpcConstants.PubkeyMetadataKey, nodePubkey },
+            { GrpcConstants.PeerInfoMetadataKey, info.ToString() }
+        };
+        Logger.LogWarning("DialBackPeerByStreamAsync meta={meta}", meta);
+        var peer = new GrpcStreamBackPeer(remoteEndpoint, info, responseStream, _streamTaskResourcePool, meta);
+
+        peer.UpdateLastReceivedHandshake(handshake);
 
         return peer;
     }
@@ -103,7 +149,6 @@ public class PeerDialer : IPeerDialer
 
         if (client == null)
             return false;
-
         try
         {
             await PingNodeAsync(client, remoteEndpoint);
@@ -177,6 +222,34 @@ public class PeerDialer : IPeerDialer
         return handshakeReply;
     }
 
+    private bool UpgradeToStream(Handshake handshake, Handshake handshakeReply)
+    {
+        return handshake.HandshakeData.NodeVersion.GreaterThanSupportStreamMinVersion() && handshakeReply.HandshakeData.NodeVersion.GreaterThanSupportStreamMinVersion();
+    }
+
+    private async Task<GrpcStreamPeer> DailStreamPeerAsync(GrpcClient client, DnsEndPoint remoteEndpoint, PeerConnectionInfo connectionInfo)
+    {
+        try
+        {
+            var nodePubkey = (await _accountService.GetPublicKeyAsync()).ToHex();
+            var streamPeer = new GrpcStreamPeer(client, remoteEndpoint, connectionInfo, null, _streamTaskResourcePool,
+                new Dictionary<string, string>()
+                {
+                    { GrpcConstants.PubkeyMetadataKey, nodePubkey },
+                    { GrpcConstants.PeerInfoMetadataKey, connectionInfo.ToString() }
+                }, Logger);
+            var success = await streamPeer.BuildStreamAndListenAsync();
+            return success ? streamPeer : null;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "stream handle shake failed {remoteEndpoint}", remoteEndpoint);
+            if (client.Channel.State == ChannelState.Idle || client.Channel.State == ChannelState.Ready)
+                await client.Channel.ShutdownAsync();
+            throw;
+        }
+    }
+
 
     /// <summary>
     ///     Checks that the distant node is reachable by pinging it.
@@ -223,7 +296,11 @@ public class PeerDialer : IPeerDialer
         {
             new(ChannelOptions.MaxSendMessageLength, GrpcConstants.DefaultMaxSendMessageLength),
             new(ChannelOptions.MaxReceiveMessageLength, GrpcConstants.DefaultMaxReceiveMessageLength),
-            new(ChannelOptions.SslTargetNameOverride, GrpcConstants.DefaultTlsCommonName)
+            new(ChannelOptions.SslTargetNameOverride, GrpcConstants.DefaultTlsCommonName),
+            new(GrpcConstants.GrpcArgKeepalivePermitWithoutCalls, GrpcConstants.GrpcArgKeepalivePermitWithoutCallsOpen),
+            new(GrpcConstants.GrpcArgHttp2MaxPingsWithoutData, GrpcConstants.GrpcArgHttp2MaxPingsWithoutDataVal),
+            new(GrpcConstants.GrpcArgKeepaliveTimeoutMs, GrpcConstants.GrpcArgKeepaliveTimeoutMsVal),
+            new(GrpcConstants.GrpcArgKeepaliveTimeMs, GrpcConstants.GrpcArgKeepaliveTimeMsVal)
         });
 
         var nodePubkey = AsyncHelper.RunSync(() => _accountService.GetPublicKeyAsync()).ToHex();
@@ -235,7 +312,6 @@ public class PeerDialer : IPeerDialer
         }).Intercept(new RetryInterceptor());
 
         var client = new PeerService.PeerServiceClient(interceptedChannel);
-
         return new GrpcClient(channel, client, certificate);
     }
 
