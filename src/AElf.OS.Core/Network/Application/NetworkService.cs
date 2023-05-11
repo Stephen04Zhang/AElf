@@ -256,7 +256,6 @@ public class NetworkService : INetworkService, ISingletonDependency
 
         if (peer == null)
             throw new InvalidOperationException($"Could not find peer {peerPubkey}.");
-
         var response = await Request(peer, p => p.GetBlocksAsync(previousBlock, count));
 
         if (response.Success && response.Payload != null
@@ -378,7 +377,7 @@ public class NetworkService : INetworkService, ISingletonDependency
         return new Response<T>();
     }
 
-    private async Task HandleNetworkException(IPeer peer, NetworkException exception)
+    public async Task HandleNetworkException(IPeer peer, NetworkException exception)
     {
         if (exception.ExceptionType == NetworkExceptionType.Unrecoverable)
         {

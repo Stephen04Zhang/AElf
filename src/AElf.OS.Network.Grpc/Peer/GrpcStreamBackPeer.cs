@@ -18,6 +18,8 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
     {
     }
 
+    public override string ConnectionStatus => IsConnected ? "Stream Ready" : "Stream Closed";
+
     public override async Task CheckHealthAsync()
     {
         var request = new GrpcRequest { ErrorMessage = "Check health failed." };

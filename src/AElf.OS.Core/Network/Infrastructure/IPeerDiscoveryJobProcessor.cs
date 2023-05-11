@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using AElf.Kernel.Account.Application;
+using AElf.OS.Network.Application;
 using AElf.OS.Network.Domain;
 using AElf.OS.Network.Extensions;
 using Microsoft.Extensions.Logging;
@@ -28,18 +29,20 @@ public class PeerDiscoveryJobProcessor : IPeerDiscoveryJobProcessor, ISingletonD
     private readonly IDiscoveredNodeCacheProvider _discoveredNodeCacheProvider;
     private readonly IAElfNetworkServer _networkServer;
     private readonly INodeManager _nodeManager;
+    private readonly INetworkService _networkService;
 
     private TransformManyBlock<IPeer, NodeInfo> _discoverNodesDataflow;
     private ActionBlock<NodeInfo> _processNodeDataflow;
 
     public PeerDiscoveryJobProcessor(INodeManager nodeManager,
         IDiscoveredNodeCacheProvider discoveredNodeCacheProvider, IAElfNetworkServer networkServer,
-        IAccountService accountService)
+        IAccountService accountService, INetworkService networkService)
     {
         _nodeManager = nodeManager;
         _discoveredNodeCacheProvider = discoveredNodeCacheProvider;
         _networkServer = networkServer;
         _accountService = accountService;
+        _networkService = networkService;
         CreatePeerDiscoveryDataflow();
 
         Logger = NullLogger<PeerDiscoveryJobProcessor>.Instance;
@@ -92,6 +95,7 @@ public class PeerDiscoveryJobProcessor : IPeerDiscoveryJobProcessor, ISingletonD
         }
         catch (Exception e)
         {
+            if (e is NetworkException exception) await _networkService.HandleNetworkException(peer, exception);
             Logger.LogWarning(e, "Discover nodes failed.");
             return new List<NodeInfo>();
         }

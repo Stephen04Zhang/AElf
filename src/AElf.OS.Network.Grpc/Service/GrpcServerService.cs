@@ -66,11 +66,12 @@ public class GrpcServerService : PeerService.PeerServiceBase
 
     public override async Task RequestByStream(IAsyncStreamReader<StreamMessage> requestStream, IServerStreamWriter<StreamMessage> responseStream, ServerCallContext context)
     {
-        Logger.LogDebug("RequestByStream started with {peerInfo} - {peer}.", context.GetPeerInfo(), context.Peer);
+        Logger.LogDebug("RequestByStream started with {peer}.", context.Peer);
         try
         {
             await requestStream.ForEachAsync(async req =>
             {
+                var start = DateTimeOffset.UtcNow;
                 Logger.LogDebug("receive request={requestId} {streamType}-{messageType}", req.RequestId, req.StreamType, req.MessageType);
                 if (req.MessageType == MessageType.HandShake)
                 {
@@ -89,15 +90,17 @@ public class GrpcServerService : PeerService.PeerServiceBase
                 {
                     await _streamService.ProcessStreamRequestAsync(req, context);
                 }
+
+                Logger.LogDebug("finish request={requestId} {streamType}-{messageType}, time cost={delta}", req.RequestId, req.StreamType, req.MessageType, DateTimeOffset.UtcNow.Subtract(start).TotalMilliseconds);
             });
         }
         catch (Exception e)
         {
-            Logger.LogError(e, "RequestByStream error - {peerInfo}: ", context.GetPeerInfo());
+            Logger.LogError(e, "RequestByStream error - {peer}: ", context.Peer);
             throw;
         }
 
-        Logger.LogDebug("RequestByStream finished with {peerInfo} - {peer}.", context.GetPeerInfo(), context.Peer);
+        Logger.LogDebug("RequestByStream finished with {peer}.", context.Peer);
     }
 
     public override Task<VoidReply> ConfirmHandshake(ConfirmHandshakeRequest request,

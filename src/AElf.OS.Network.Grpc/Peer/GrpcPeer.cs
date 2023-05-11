@@ -115,7 +115,7 @@ public class GrpcPeer : IPeer
         Info.ConnectionTime.AddMilliseconds(NetworkConstants.PeerConnectionTimeout) <
         TimestampHelper.GetUtcNow();
 
-    public string ConnectionStatus => _channel != null ? _channel.State.ToString() : "unknown";
+    public virtual string ConnectionStatus => _channel != null ? _channel.State.ToString() : "";
 
     public Hash LastKnownLibHash { get; private set; }
     public long LastKnownLibHeight { get; private set; }
