@@ -351,7 +351,7 @@ public class ConnectionService : IConnectionService
     public async Task<bool> BuildStreamForPeerAsync(IPeer peer)
     {
         if (peer is GrpcStreamPeer streamPeer) return await _peerDialer.BuildStreamForPeerAsync(streamPeer);
-        return await Task.FromResult(false);
+        return false;
     }
 
     public async Task<bool> CheckEndpointAvailableAsync(DnsEndPoint endpoint)

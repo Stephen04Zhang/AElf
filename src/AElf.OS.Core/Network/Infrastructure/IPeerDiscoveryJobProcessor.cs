@@ -95,7 +95,7 @@ public class PeerDiscoveryJobProcessor : IPeerDiscoveryJobProcessor, ISingletonD
         }
         catch (Exception e)
         {
-            if (e is NetworkException exception) await _networkService.HandleNetworkException(peer, exception);
+            if (e is NetworkException exception) await _networkService.HandleNetworkExceptionAsync(peer, exception);
             Logger.LogWarning(e, "Discover nodes failed.");
             return new List<NodeInfo>();
         }

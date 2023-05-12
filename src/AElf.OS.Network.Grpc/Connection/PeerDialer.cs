@@ -259,6 +259,7 @@ public class PeerDialer : IPeerDialer
     public async Task<bool> BuildStreamForPeerAsync(GrpcStreamPeer streamPeer, AsyncDuplexStreamingCall<StreamMessage, StreamMessage> call = null)
     {
         call ??= streamPeer.BuildCall();
+        if (call == null) return false;
         var tokenSource = new CancellationTokenSource();
         Task.Run(async () =>
         {
@@ -266,11 +267,11 @@ public class PeerDialer : IPeerDialer
             {
                 await call.ResponseStream.ForEachAsync(async req => await
                     EventBus.PublishAsync(new StreamMessageReceivedEvent(req.ToByteString(), streamPeer.Info.Pubkey), false));
-                Logger.LogDebug("listen end and complete {remoteEndPoint}", streamPeer.RemoteEndpoint.ToString());
+                Logger.LogWarning("listen end and complete {remoteEndPoint}", streamPeer.RemoteEndpoint.ToString());
             }
             catch (Exception e)
             {
-                Logger.LogDebug(e, "listen err {remoteEndPoint}", streamPeer.RemoteEndpoint.ToString());
+                Logger.LogError(e, "listen err {remoteEndPoint}", streamPeer.RemoteEndpoint.ToString());
             }
         }, tokenSource.Token);
         streamPeer.StartServe(tokenSource);
@@ -284,7 +285,7 @@ public class PeerDialer : IPeerDialer
 
         streamPeer.InboundSessionId = handshake.SessionId.ToByteArray();
         streamPeer.Info.SessionId = handShakeReply.Handshake.SessionId.ToByteArray();
-        Logger.LogDebug("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", streamPeer.RemoteEndpoint.ToString(), streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex());
+        Logger.LogInformation("streaming Handshake to {remoteEndPoint} successful.sessionInfo {InboundSessionId} {SessionId}", streamPeer.RemoteEndpoint.ToString(), streamPeer.InboundSessionId.ToHex(), streamPeer.Info.SessionId.ToHex());
         return true;
     }
 

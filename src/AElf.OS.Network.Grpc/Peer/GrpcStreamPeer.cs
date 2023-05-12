@@ -41,12 +41,16 @@ public class GrpcStreamPeer : GrpcPeer
         _clientStreamWriter = duplexStreamingCall?.RequestStream ?? clientStreamWriter;
         _streamTaskResourcePool = streamTaskResourcePool;
         _peerMeta = peerMeta;
-        _sendStreamJobs = new ActionBlock<StreamJob>(WriteStreamJobAsync);
+        _sendStreamJobs = new ActionBlock<StreamJob>(WriteStreamJobAsync, new ExecutionDataflowBlockOptions
+        {
+            BoundedCapacity = NetworkConstants.DefaultMaxBufferedStreamCount
+        });
         Logger = NullLogger<GrpcStreamPeer>.Instance;
     }
 
     public AsyncDuplexStreamingCall<StreamMessage, StreamMessage> BuildCall()
     {
+        if (_client == null) return null;
         _duplexStreamingCall = _client.RequestByStream(new CallOptions().WithDeadline(DateTime.MaxValue));
         _clientStreamWriter = _duplexStreamingCall.RequestStream;
         return _duplexStreamingCall;
@@ -174,15 +178,9 @@ public class GrpcStreamPeer : GrpcPeer
         await RequestAsync(() => StreamRequestAsync(MessageType.HealthCheck, new HealthCheckRequest(), data), request);
     }
 
-    public async Task WriteAsync(StreamMessage message)
+    public async Task WriteAsync(StreamMessage message, Action<NetworkException> sendCallback)
     {
-        await _sendStreamJobs.SendAsync(new StreamJob
-        {
-            StreamMessage = message, SendCallback = ex =>
-            {
-                if (ex != null) throw ex;
-            }
-        });
+        await _sendStreamJobs.SendAsync(new StreamJob { StreamMessage = message, SendCallback = sendCallback });
     }
 
     private async Task WriteStreamJobAsync(StreamJob job)

@@ -58,7 +58,7 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
     }
 
 
-    public override NetworkException HandleRpcException(RpcException exception, string errorMessage)
+    protected override NetworkException HandleRpcException(RpcException exception, string errorMessage)
     {
         var message = $"Failed request to {this}: {errorMessage}";
         var type = NetworkExceptionType.Rpc;

@@ -29,5 +29,5 @@ public interface INetworkService
     Task CheckPeersHealthAsync();
     void CheckNtpDrift();
     bool IsPeerPoolFull();
-    Task HandleNetworkException(IPeer peer, NetworkException exception);
+    Task HandleNetworkExceptionAsync(IPeer peer, NetworkException exception);
 }

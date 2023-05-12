@@ -394,7 +394,7 @@ public class GrpcPeer : IPeer
     ///     This method handles the case where the peer is potentially down. If the Rpc call
     ///     put the channel in TransientFailure or Connecting, we give the connection a certain time to recover.
     /// </summary>
-    public virtual NetworkException HandleRpcException(RpcException exception, string errorMessage)
+    protected virtual NetworkException HandleRpcException(RpcException exception, string errorMessage)
     {
         var message = $"Failed request to {this}: {errorMessage}";
         var type = NetworkExceptionType.Rpc;

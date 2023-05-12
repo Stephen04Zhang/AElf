@@ -58,14 +58,8 @@ public class StreamService : IStreamService, ISingletonDependency
             await DoProcessAsync(new StreamMessageMetaStreamContext(message.Meta), message, streamPeer);
             Logger.LogInformation("handle stream call success, clientPubKey={clientPubKey} request={requestId} {streamType}-{messageType}", clientPubKey, message.RequestId, message.StreamType, message.MessageType);
         }
-        catch (RpcException ex)
-        {
-            await HandleNetworkExceptionAsync(peer, streamPeer.HandleRpcException(ex, $"Could process stream reply request={message.RequestId}: "));
-            Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}-{messageType}", clientPubKey, message.RequestId, message.StreamType, message.MessageType);
-        }
         catch (Exception ex)
         {
-            await HandleNetworkExceptionAsync(peer, new NetworkException($"unknown exception happen process stream reply request={message.RequestId}: ", ex));
             Logger.LogError(ex, "handle stream call failed, clientPubKey={clientPubKey} request={requestId} {streamType}-{messageType}", clientPubKey, message.RequestId, message.StreamType, message.MessageType);
         }
     }
@@ -103,7 +97,10 @@ public class StreamService : IStreamService, ISingletonDependency
                 RequestId = request.RequestId, Message = reply == null ? new VoidReply().ToByteString() : reply.ToByteString()
             };
             message.Meta.Add(GrpcConstants.SessionIdMetadataKey, responsePeer.Info.SessionId.ToHex());
-            await responsePeer.WriteAsync(message);
+            await responsePeer.WriteAsync(message, async ex =>
+            {
+                if (ex != null) await HandleNetworkExceptionAsync(responsePeer, ex);
+            });
         }
         catch (Exception e)
         {
@@ -132,7 +129,10 @@ public class StreamService : IStreamService, ISingletonDependency
         if (peer.IsReady) // peer recovered already
             return;
         var success = await peer.TryRecoverAsync();
-        success = success && peer is GrpcStreamPeer streamPeer && await _connectionService.BuildStreamForPeerAsync(streamPeer);
+        if (success && peer is GrpcStreamPeer streamPeer)
+        {
+            await _connectionService.BuildStreamForPeerAsync(streamPeer);
+        }
 
         if (!success) await _connectionService.TrySchedulePeerReconnectionAsync(peer);
     }

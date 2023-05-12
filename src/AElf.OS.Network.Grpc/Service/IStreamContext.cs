@@ -68,6 +68,6 @@ public class StreamMessageMetaStreamContext : IStreamContext
 
     public void SetPeerInfo(string peerInfo)
     {
-        _meta[GrpcConstants.SessionIdMetadataKey] = peerInfo;
+        _meta[GrpcConstants.PeerInfoMetadataKey] = peerInfo;
     }
 }

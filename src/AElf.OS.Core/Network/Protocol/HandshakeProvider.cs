@@ -16,7 +16,7 @@ public class HandshakeProvider : IHandshakeProvider
     private readonly IAccountService _accountService;
     private readonly IBlockchainService _blockchainService;
     private readonly NetworkOptions _networkOptions;
-    public static readonly string NodeVersion = typeof(CoreOSAElfModule).Assembly.GetName().Version?.ToString();
+    private static readonly string NodeVersion = typeof(CoreOSAElfModule).Assembly.GetName().Version?.ToString();
 
     public HandshakeProvider(IAccountService accountService, IBlockchainService blockchainService,
         IOptionsSnapshot<NetworkOptions> networkOptions)
