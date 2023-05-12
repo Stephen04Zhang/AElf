@@ -38,7 +38,6 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
         _sendStreamJobs.Complete();
         // send disconnect message if the peer is still connected and the connection
         // is stable.
-        if (!gracefulDisconnect) return;
         try
         {
             await RequestAsync(() => StreamRequestAsync(MessageType.Disconnect,

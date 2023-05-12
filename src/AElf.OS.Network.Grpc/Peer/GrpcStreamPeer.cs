@@ -63,10 +63,22 @@ public class GrpcStreamPeer : GrpcPeer
 
     public override async Task DisconnectAsync(bool gracefulDisconnect)
     {
-        _sendStreamJobs.Complete();
-        await _duplexStreamingCall?.RequestStream?.CompleteAsync();
-        _duplexStreamingCall?.Dispose();
-        _streamListenTaskTokenSource?.Cancel();
+        try
+        {
+            _sendStreamJobs.Complete();
+            await _duplexStreamingCall?.RequestStream?.CompleteAsync();
+            _duplexStreamingCall?.Dispose();
+            _streamListenTaskTokenSource?.Cancel();
+            await RequestAsync(() => StreamRequestAsync(MessageType.Disconnect,
+                    new DisconnectReason { Why = DisconnectReason.Types.Reason.Shutdown },
+                    new Metadata { { GrpcConstants.SessionIdMetadataKey, OutboundSessionId } }),
+                new GrpcRequest { ErrorMessage = "Could not send disconnect." });
+        }
+        catch (Exception)
+        {
+            // swallow the exception, we don't care because we're disconnecting.
+        }
+
         await base.DisconnectAsync(gracefulDisconnect);
     }
 
