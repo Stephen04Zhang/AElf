@@ -29,5 +29,5 @@ public interface INetworkService
     Task CheckPeersHealthAsync();
     void CheckNtpDrift();
     bool IsPeerPoolFull();
-    Task<List<NodeInfo>> GetNodesAsync(IPeer peer, int count = NetworkConstants.DefaultDiscoveryMaxNodesToRequest);
+    Task<List<NodeInfo>> GetNodesAsync(IPeer peer);
 }

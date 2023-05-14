@@ -377,7 +377,7 @@ public class NetworkService : INetworkService, ISingletonDependency
         return new Response<T>();
     }
 
-    public async Task<List<NodeInfo>> GetNodesAsync(IPeer peer, int count = NetworkConstants.DefaultDiscoveryMaxNodesToRequest)
+    public async Task<List<NodeInfo>> GetNodesAsync(IPeer peer)
     {
         try
         {
@@ -386,13 +386,13 @@ public class NetworkService : INetworkService, ISingletonDependency
             if (nodeList?.Nodes == null)
                 return new List<NodeInfo>();
 
-            Logger.LogDebug($"Discover nodes: {nodeList} from peer: {peer}.");
+            Logger.LogDebug("get nodes: {nodeList} from peer: {peer}.", nodeList, peer);
             return nodeList.Nodes.ToList();
         }
         catch (Exception e)
         {
             if (e is NetworkException exception) await HandleNetworkExceptionAsync(peer, exception);
-            Logger.LogWarning(e, "Discover nodes failed.");
+            Logger.LogWarning(e, "get nodes failed. peer={peer}", peer);
             return new List<NodeInfo>();
         }
     }
