@@ -70,39 +70,6 @@ public static class AElfPeerEndpointHelper
         return true;
     }
 
-    public static int GetEndpointPort(string endpointString)
-    {
-        var values = endpointString.Split(new[] { ':' });
-        if (values.Length == 1)
-        {
-            return -1;
-        }
-
-        if (values.Length == 2)
-        {
-            if (!int.TryParse(values[values.Length - 1], out var port))
-            {
-                return -1;
-            }
-
-            return port;
-        }
-
-        //ipv6
-        //could be [a:b:c]:d
-        if (values[0].StartsWith("[") && values[values.Length - 2].EndsWith("]"))
-        {
-            if (!int.TryParse(values[values.Length - 1], out var port))
-            {
-                return -1;
-            }
-
-            return port;
-        }
-
-        return -1;
-    }
-
     private static int GetPort(string p)
     {
         if (!int.TryParse(p, out var port) || port < IPEndPoint.MinPort || port > IPEndPoint.MaxPort)
