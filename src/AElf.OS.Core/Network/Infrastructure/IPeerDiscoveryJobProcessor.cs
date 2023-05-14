@@ -83,22 +83,7 @@ public class PeerDiscoveryJobProcessor : IPeerDiscoveryJobProcessor, ISingletonD
 
     private async Task<List<NodeInfo>> DiscoverNodesAsync(IPeer peer)
     {
-        try
-        {
-            var nodeList = await peer.GetNodesAsync();
-
-            if (nodeList?.Nodes == null)
-                return new List<NodeInfo>();
-
-            Logger.LogDebug($"Discover nodes: {nodeList} from peer: {peer}.");
-            return nodeList.Nodes.ToList();
-        }
-        catch (Exception e)
-        {
-            if (e is NetworkException exception) await _networkService.HandleNetworkExceptionAsync(peer, exception);
-            Logger.LogWarning(e, "Discover nodes failed.");
-            return new List<NodeInfo>();
-        }
+        return await _networkService.GetNodesAsync(peer);
     }
 
     private async Task ProcessNodeAsync(NodeInfo node)
