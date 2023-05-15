@@ -65,14 +65,14 @@ public class GrpcStreamPeer : GrpcPeer
     {
         try
         {
-            _sendStreamJobs.Complete();
-            await _duplexStreamingCall?.RequestStream?.CompleteAsync();
-            _duplexStreamingCall?.Dispose();
-            _streamListenTaskTokenSource?.Cancel();
             await RequestAsync(() => StreamRequestAsync(MessageType.Disconnect,
                     new DisconnectReason { Why = DisconnectReason.Types.Reason.Shutdown },
                     new Metadata { { GrpcConstants.SessionIdMetadataKey, OutboundSessionId } }),
                 new GrpcRequest { ErrorMessage = "Could not send disconnect." });
+            _sendStreamJobs.Complete();
+            await _duplexStreamingCall?.RequestStream?.CompleteAsync();
+            _duplexStreamingCall?.Dispose();
+            _streamListenTaskTokenSource?.Cancel();
         }
         catch (Exception)
         {
