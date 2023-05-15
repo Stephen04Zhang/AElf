@@ -71,7 +71,7 @@ public class GrpcStreamBackPeer : GrpcStreamPeer
         else if (exception.StatusCode == StatusCode.Unknown)
         {
             message = $"Exception in handler {this}: {errorMessage}";
-            type = NetworkExceptionType.HandlerException;
+            type = NetworkExceptionType.Unrecoverable;
         }
 
         return new NetworkException(message, exception, type);
