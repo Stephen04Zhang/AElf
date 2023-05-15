@@ -156,7 +156,7 @@ public class GrpcPeer : IPeer
         {
             { GrpcConstants.TimeoutMetadataKey, GetNodesTimeout.ToString() },
             { GrpcConstants.SessionIdMetadataKey, OutboundSessionId }
-        };                                                                                   
+        };
 
         return RequestAsync(() => _client.GetNodesAsync(new NodesRequest { MaxCount = count }, data), request);
     }
@@ -422,17 +422,8 @@ public class GrpcPeer : IPeer
         }
         else
         {
-            // there was an exception, not related to connectivity.
-            if (exception.StatusCode == StatusCode.Cancelled)
-            {
-                message = $"Request was cancelled {this}: {errorMessage}";
-                type = NetworkExceptionType.Unrecoverable;
-            }
-            else if (exception.StatusCode == StatusCode.Unknown)
-            {
-                message = $"Exception in handler {this}: {errorMessage}";
-                type = NetworkExceptionType.HandlerException;
-            }
+            message = $"Peer is ready, but stream is unstable - {this}: {errorMessage}";
+            type = NetworkExceptionType.PeerUnstable;
         }
 
         return new NetworkException(message, exception, type);

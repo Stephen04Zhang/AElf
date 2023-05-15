@@ -96,7 +96,7 @@ public class StreamService : IStreamService, ISingletonDependency
                 StreamType = StreamType.Reply, MessageType = request.MessageType,
                 RequestId = request.RequestId, Message = reply == null ? new VoidReply().ToByteString() : reply.ToByteString()
             };
-            message.Meta.Add(GrpcConstants.SessionIdMetadataKey, responsePeer.Info.SessionId.ToHex());
+            if (IsNeedAuth(request)) message.Meta.Add(GrpcConstants.SessionIdMetadataKey, responsePeer.Info.SessionId.ToHex());
             await responsePeer.WriteAsync(message, async ex =>
             {
                 if (ex != null) await HandleNetworkExceptionAsync(responsePeer, ex);
