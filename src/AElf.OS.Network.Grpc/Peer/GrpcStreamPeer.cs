@@ -281,6 +281,41 @@ public class GrpcStreamPeer : GrpcPeer
         return t == null ? StreamWaitTime : int.Parse(t);
     }
 
+    protected override NetworkException HandleRpcException(RpcException exception, string errorMessage)
+    {
+        var message = $"Failed request to {this}: {errorMessage}";
+        var type = NetworkExceptionType.Rpc;
+
+        if (_channel.State != ChannelState.Ready)
+        {
+            // if channel has been shutdown (unrecoverable state) remove it.
+            if (_channel.State == ChannelState.Shutdown)
+            {
+                message = $"Peer is shutdown - {this}: {errorMessage}";
+                type = NetworkExceptionType.Unrecoverable;
+            }
+            else if (_channel.State == ChannelState.TransientFailure || _channel.State == ChannelState.Connecting)
+            {
+                // from this we try to recover
+                message = $"Peer is unstable - {this}: {errorMessage}";
+                type = NetworkExceptionType.PeerUnstable;
+            }
+            else
+            {
+                // if idle just after an exception, disconnect.
+                message = $"Peer idle, channel state {_channel.State} - {this}: {errorMessage}";
+                type = NetworkExceptionType.Unrecoverable;
+            }
+        }
+        else
+        {
+            message = $"Peer is ready, but stream is unstable - {this}: {errorMessage}";
+            type = NetworkExceptionType.PeerUnstable;
+        }
+
+        return new NetworkException(message, exception, type);
+    }
+
     public override async Task<bool> TryRecoverAsync()
     {
         return IsReady || await base.TryRecoverAsync();
